@@ -47,3 +47,9 @@ src/
 - Named exports for components, default export only for App
 - Use `type` imports for type-only imports (`import type { ... }`)
 - Sharps notation for notes (C#, not Db) - consistent with tonal library defaults
+
+## Git Workflow
+
+- ISSUEに取り組む際は必ず専用ブランチを切る
+- ブランチ命名: `feature/issue-{番号}-{概要}` or `fix/issue-{番号}-{概要}`
+- mainブランチへの直接コミットは禁止
