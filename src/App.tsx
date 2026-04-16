@@ -1,8 +1,11 @@
 import { AudioSetup } from "./components/audio/AudioSetup";
+import { PitchDisplay } from "./components/audio/PitchDisplay";
 import { useAudioInput } from "./hooks/useAudioInput";
+import { usePitchDetection } from "./hooks/usePitchDetection";
 
 function App() {
   const audio = useAudioInput();
+  const { pitch } = usePitchDetection(audio.engine, audio.isListening);
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200">
@@ -22,11 +25,7 @@ function App() {
           onSwitchDevice={audio.switchDevice}
         />
 
-        {audio.isListening && (
-          <div className="bg-slate-800 rounded-xl p-6 text-center text-slate-400">
-            Audio input active. Pitch detection coming next...
-          </div>
-        )}
+        {audio.isListening && <PitchDisplay pitch={pitch} />}
       </main>
     </div>
   );

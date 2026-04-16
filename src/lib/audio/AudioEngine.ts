@@ -1,8 +1,12 @@
+import { PitchAnalyzer } from "./pitchDetection";
+import type { PitchResult } from "../../types/audio";
+
 export class AudioEngine {
   private audioContext: AudioContext | null = null;
   private analyserNode: AnalyserNode | null = null;
   private sourceNode: MediaStreamAudioSourceNode | null = null;
   private stream: MediaStream | null = null;
+  private pitchAnalyzer = new PitchAnalyzer();
 
   get sampleRate(): number {
     return this.audioContext?.sampleRate ?? 48000;
@@ -58,6 +62,11 @@ export class AudioEngine {
       sum += data[i] * data[i];
     }
     return Math.sqrt(sum / data.length);
+  }
+
+  detectPitch(): PitchResult {
+    const buffer = this.getTimeDomainData();
+    return this.pitchAnalyzer.detectPitch(buffer, this.sampleRate);
   }
 
   static async enumerateDevices(): Promise<MediaDeviceInfo[]> {
