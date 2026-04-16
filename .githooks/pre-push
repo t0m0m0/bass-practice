@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Prevent direct push to main branch
+
+protected_branch="main"
+
+while read local_ref local_sha remote_ref remote_sha; do
+  if echo "$remote_ref" | grep -q "refs/heads/${protected_branch}"; then
+    echo "\033[31m✖ Direct push to '${protected_branch}' is not allowed.\033[0m"
+    echo "  Please create a feature branch and open a pull request."
+    exit 1
+  fi
+done
+
+exit 0
