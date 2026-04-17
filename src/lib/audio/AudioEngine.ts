@@ -7,6 +7,7 @@ export class AudioEngine {
   private sourceNode: MediaStreamAudioSourceNode | null = null;
   private stream: MediaStream | null = null;
   private pitchAnalyzer = new PitchAnalyzer();
+  private timeDomainBuffer: Float32Array<ArrayBuffer> | null = null;
 
   get sampleRate(): number {
     return this.audioContext?.sampleRate ?? 48000;
@@ -51,15 +52,16 @@ export class AudioEngine {
     this.sourceNode = null;
     this.analyserNode = null;
     this.audioContext = null;
+    this.timeDomainBuffer = null;
   }
 
   getTimeDomainData(): Float32Array {
-    if (!this.analyserNode) {
-      return new Float32Array(0);
+    if (!this.analyserNode) return new Float32Array(0);
+    if (!this.timeDomainBuffer || this.timeDomainBuffer.length !== this.analyserNode.fftSize) {
+      this.timeDomainBuffer = new Float32Array(this.analyserNode.fftSize);
     }
-    const buffer = new Float32Array(this.analyserNode.fftSize);
-    this.analyserNode.getFloatTimeDomainData(buffer);
-    return buffer;
+    this.analyserNode.getFloatTimeDomainData(this.timeDomainBuffer);
+    return this.timeDomainBuffer;
   }
 
   getInputLevel(): number {
