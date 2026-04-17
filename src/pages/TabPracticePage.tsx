@@ -37,11 +37,10 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
 
   const handleStart = async () => {
     setStartError(null);
+    if (!audio.isListening) {
+      audio.start().catch(() => {}); // mic failure is non-fatal; onset detection just won't work
+    }
     try {
-      if (!audio.isListening) {
-        await audio.start();
-      }
-      await new Promise((resolve) => setTimeout(resolve, 100));
       await practice.startSession();
     } catch (err) {
       setStartError(err instanceof Error ? err.message : String(err));
@@ -83,7 +82,6 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
       <MetronomeControls
         bpm={practice.metronome.bpm}
         isPlaying={practice.metronome.isPlaying}
-        isAudioReady={audio.isListening || audio.isPermissionGranted}
         phase={practice.phase}
         onBpmChange={practice.metronome.setBpm}
         onStart={handleStart}

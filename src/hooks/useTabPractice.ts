@@ -113,8 +113,6 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
   }, [metronome, handleBeat]);
 
   const startSession = useCallback(async () => {
-    if (!audioEngine) return;
-
     setTimingEvents([]);
     setCurrentBeat(-1);
     setLoop(0);
@@ -135,7 +133,7 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     }
     // targetsRef is populated by handleBeat on the first beat callback.
     setPhase("playing");
-  }, [audioEngine, metronome]);
+  }, [metronome]);
 
   const stopSession = useCallback(async () => {
     cancelAnimationFrame(animFrameRef.current);
