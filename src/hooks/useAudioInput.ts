@@ -55,9 +55,9 @@ export function useAudioInput() {
     [updateLevel],
   );
 
-  const stop = useCallback(() => {
+  const stop = useCallback(async () => {
     cancelAnimationFrame(levelAnimationRef.current);
-    engineRef.current?.stop();
+    await engineRef.current?.stop();
     engineRef.current = null;
     setEngine(null);
     setState((prev) => ({
@@ -69,7 +69,7 @@ export function useAudioInput() {
 
   const switchDevice = useCallback(
     async (deviceId: string) => {
-      stop();
+      await stop();
       await start(deviceId);
     },
     [start, stop],

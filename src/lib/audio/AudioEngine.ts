@@ -35,10 +35,10 @@ export class AudioEngine {
     this.sourceNode.connect(this.analyserNode);
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.stream?.getTracks().forEach((track) => track.stop());
     this.sourceNode?.disconnect();
-    this.audioContext?.close();
+    await this.audioContext?.close();
     this.stream = null;
     this.sourceNode = null;
     this.analyserNode = null;
