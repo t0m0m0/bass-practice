@@ -109,10 +109,10 @@ describe("AudioEngine", () => {
       expect(engine.sampleRate).toBe(44100);
     });
 
-    it("AnalyserNode の fftSize を 4096 に設定する", async () => {
+    it("AnalyserNode の fftSize を 8192 に設定する", async () => {
       const engine = new AudioEngine();
       await engine.start();
-      expect(mockAnalyser.fftSize).toBe(4096);
+      expect(mockAnalyser.fftSize).toBe(8192);
     });
   });
 
