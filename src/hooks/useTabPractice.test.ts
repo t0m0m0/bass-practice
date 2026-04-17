@@ -80,13 +80,13 @@ describe("useTabPractice", () => {
     expect(result.current.timingEvents).toEqual([]);
   });
 
-  it("startSession does nothing when audioEngine is null", async () => {
+  it("startSession starts metronome even when audioEngine is null", async () => {
     const { result } = renderHook(() => useTabPractice(preset, null));
     await act(async () => {
       await result.current.startSession();
     });
-    expect(result.current.phase).toBe("idle");
-    expect(mockStart).not.toHaveBeenCalled();
+    expect(result.current.phase).toBe("playing");
+    expect(mockStart).toHaveBeenCalledTimes(1);
   });
 
   it("transitions countdown → playing on startSession and starts the metronome", async () => {

@@ -47,7 +47,8 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
     }
   };
 
-  const displayedError = startError ?? audio.error;
+  const displayedError = startError;
+  const micWarning = !startError && audio.error ? audio.error : null;
 
   return (
     <div className="space-y-6">
@@ -94,6 +95,12 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
           className="bg-red-950/40 border border-red-800 text-red-200 text-sm rounded px-4 py-3"
         >
           {displayedError}
+        </div>
+      )}
+
+      {micWarning && (
+        <div className="bg-yellow-950/40 border border-yellow-800 text-yellow-200 text-sm rounded px-4 py-3">
+          🎤 マイクが利用できません（メトロノームは動作します）: {micWarning}
         </div>
       )}
 
