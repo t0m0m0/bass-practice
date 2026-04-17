@@ -64,6 +64,11 @@ describe("useAudioInput", () => {
       const { result } = renderHook(() => useAudioInput());
       expect(result.current.availableDevices).toEqual([]);
     });
+
+    it("engine は null", () => {
+      const { result } = renderHook(() => useAudioInput());
+      expect(result.current.engine).toBeNull();
+    });
   });
 
   describe("start()", () => {
@@ -136,6 +141,14 @@ describe("useAudioInput", () => {
       });
       expect(result.current.error).toBe("Failed to access microphone");
     });
+
+    it("start() 後は engine が非 null になる（state として再レンダリングをトリガーする）", async () => {
+      const { result } = renderHook(() => useAudioInput());
+      await act(async () => {
+        await result.current.start();
+      });
+      expect(result.current.engine).not.toBeNull();
+    });
   });
 
   describe("stop()", () => {
@@ -170,6 +183,17 @@ describe("useAudioInput", () => {
         result.current.stop();
       });
       expect(mocks.engineStop).toHaveBeenCalled();
+    });
+
+    it("stop() 後は engine が null になる", async () => {
+      const { result } = renderHook(() => useAudioInput());
+      await act(async () => {
+        await result.current.start();
+      });
+      act(() => {
+        result.current.stop();
+      });
+      expect(result.current.engine).toBeNull();
     });
   });
 

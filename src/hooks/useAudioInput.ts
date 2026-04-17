@@ -4,6 +4,7 @@ import type { AudioInputState } from "../types/audio";
 
 export function useAudioInput() {
   const engineRef = useRef<AudioEngine | null>(null);
+  const [engine, setEngine] = useState<AudioEngine | null>(null);
   const [state, setState] = useState<AudioInputState>({
     isPermissionGranted: false,
     isListening: false,
@@ -26,9 +27,10 @@ export function useAudioInput() {
   const start = useCallback(
     async (deviceId?: string) => {
       try {
-        const engine = new AudioEngine();
-        await engine.start(deviceId);
-        engineRef.current = engine;
+        const newEngine = new AudioEngine();
+        await newEngine.start(deviceId);
+        engineRef.current = newEngine;
+        setEngine(newEngine);
 
         const devices = await AudioEngine.enumerateDevices();
 
@@ -57,6 +59,7 @@ export function useAudioInput() {
     cancelAnimationFrame(levelAnimationRef.current);
     engineRef.current?.stop();
     engineRef.current = null;
+    setEngine(null);
     setState((prev) => ({
       ...prev,
       isListening: false,
@@ -81,7 +84,7 @@ export function useAudioInput() {
 
   return {
     ...state,
-    engine: engineRef.current,
+    engine,
     start,
     stop,
     switchDevice,
