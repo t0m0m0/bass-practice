@@ -78,6 +78,40 @@ describe("evaluateOnset", () => {
     // Should match beat 1 instead, but 5ms is far from 500ms
     expect(event).toBeNull();
   });
+
+  it("selects the next valid target when the closest is already hit", () => {
+    const closeTargets = [
+      { beat: 0, timeMs: 100 },
+      { beat: 1, timeMs: 150 },
+    ];
+    const event = evaluateOnset(110, closeTargets, new Set([0]));
+    expect(event).not.toBeNull();
+    expect(event!.targetBeat).toBe(1);
+  });
+
+  describe("boundary cases", () => {
+    it("treats |deltaMs| === 30 as hit (inclusive upper bound)", () => {
+      expect(evaluateOnset(30, targets, new Set())!.judgment).toBe("hit");
+      expect(evaluateOnset(-30 + 500, targets, new Set())!.judgment).toBe(
+        "hit",
+      );
+    });
+
+    it("treats |deltaMs| === 31 as early/late (exclusive)", () => {
+      expect(evaluateOnset(31, targets, new Set())!.judgment).toBe("late");
+      expect(evaluateOnset(469, targets, new Set())!.judgment).toBe("early");
+    });
+
+    it("treats |deltaMs| === HIT_WINDOW_MS (100) as inside the window", () => {
+      const event = evaluateOnset(100, targets, new Set());
+      expect(event).not.toBeNull();
+      expect(event!.judgment).toBe("late");
+    });
+
+    it("treats |deltaMs| === 101 as outside the hit window", () => {
+      expect(evaluateOnset(101, targets, new Set())).toBeNull();
+    });
+  });
 });
 
 describe("generateMisses", () => {

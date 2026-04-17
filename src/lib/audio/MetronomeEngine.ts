@@ -8,6 +8,16 @@ type BeatCallback = (beat: number, time: number) => void;
 
 const LOOKAHEAD_MS = 25;
 const SCHEDULE_AHEAD_S = 0.1;
+const MIN_BPM = 20;
+const MAX_BPM = 300;
+
+function assertBeatsPerMeasure(value: number): void {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new RangeError(
+      `beatsPerMeasure must be a positive integer, got ${value}`,
+    );
+  }
+}
 
 export class MetronomeEngine {
   private audioContext: AudioContext | null = null;
@@ -21,9 +31,14 @@ export class MetronomeEngine {
   private beatCallbacks: BeatCallback[] = [];
 
   constructor(options: MetronomeOptions) {
-    this._bpm = options.bpm;
+    assertBeatsPerMeasure(options.beatsPerMeasure);
+    this._bpm = MetronomeEngine.clampBpm(options.bpm);
     this._beatsPerMeasure = options.beatsPerMeasure;
     this._beatUnit = options.beatUnit;
+  }
+
+  private static clampBpm(value: number): number {
+    return Math.max(MIN_BPM, Math.min(MAX_BPM, value));
   }
 
   get bpm(): number {
@@ -31,7 +46,7 @@ export class MetronomeEngine {
   }
 
   set bpm(value: number) {
-    this._bpm = Math.max(20, Math.min(300, value));
+    this._bpm = MetronomeEngine.clampBpm(value);
   }
 
   get beatsPerMeasure(): number {
@@ -39,6 +54,7 @@ export class MetronomeEngine {
   }
 
   set beatsPerMeasure(value: number) {
+    assertBeatsPerMeasure(value);
     this._beatsPerMeasure = value;
   }
 
@@ -69,15 +85,19 @@ export class MetronomeEngine {
   async start(): Promise<void> {
     if (this._isPlaying) return;
 
-    this.audioContext = new AudioContext();
+    const ctx = new AudioContext();
+    if (ctx.state === "suspended") {
+      await ctx.resume();
+    }
+    this.audioContext = ctx;
     this._isPlaying = true;
     this.currentBeat = 0;
-    this.nextNoteTime = this.audioContext.currentTime + 0.05; // small initial delay
+    this.nextNoteTime = ctx.currentTime + 0.05; // small initial delay
 
     this.timerID = setInterval(() => this.scheduler(), LOOKAHEAD_MS);
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     if (!this._isPlaying) return;
 
     this._isPlaying = false;
@@ -85,14 +105,17 @@ export class MetronomeEngine {
       clearInterval(this.timerID);
       this.timerID = null;
     }
-    this.audioContext?.close();
+    const ctx = this.audioContext;
     this.audioContext = null;
     this.currentBeat = 0;
+    if (ctx && ctx.state !== "closed") {
+      await ctx.close();
+    }
   }
 
-  /** Get the AudioContext currentTime in ms (for onset comparison) */
-  getCurrentTimeMs(): number {
-    if (!this.audioContext) return 0;
+  /** AudioContext currentTime in ms, or null if not playing */
+  getCurrentTimeMs(): number | null {
+    if (!this.audioContext) return null;
     return this.audioContext.currentTime * 1000;
   }
 

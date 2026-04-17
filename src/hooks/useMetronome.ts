@@ -14,28 +14,41 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
     if (engineRef.current?.isPlaying) return;
 
     const engine = new MetronomeEngine({ bpm, beatsPerMeasure, beatUnit });
-    engineRef.current = engine;
 
     engine.onBeat((beat, time) => {
       setCurrentBeat(beat);
       externalCallbackRef.current?.(beat, time);
     });
 
-    await engine.start();
+    try {
+      await engine.start();
+    } catch (err) {
+      // Make sure we don't leak a half-initialized AudioContext.
+      await engine.stop().catch(() => {});
+      throw err;
+    }
+
+    engineRef.current = engine;
+    // Surface the engine's (possibly clamped) BPM so downstream consumers agree
+    // with the actual click interval.
+    setBpmState(engine.bpm);
     setIsPlaying(true);
   }, [bpm, beatsPerMeasure, beatUnit]);
 
-  const stop = useCallback(() => {
-    engineRef.current?.stop();
+  const stop = useCallback(async () => {
+    const engine = engineRef.current;
     engineRef.current = null;
     setIsPlaying(false);
     setCurrentBeat(0);
+    await engine?.stop();
   }, []);
 
   const setBpm = useCallback((value: number) => {
-    setBpmState(value);
     if (engineRef.current) {
       engineRef.current.bpm = value;
+      setBpmState(engineRef.current.bpm);
+    } else {
+      setBpmState(value);
     }
   }, []);
 
@@ -43,13 +56,14 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
     externalCallbackRef.current = callback;
   }, []);
 
-  const getCurrentTimeMs = useCallback((): number => {
-    return engineRef.current?.getCurrentTimeMs() ?? 0;
+  const getCurrentTimeMs = useCallback((): number | null => {
+    return engineRef.current?.getCurrentTimeMs() ?? null;
   }, []);
 
   useEffect(() => {
     return () => {
-      engineRef.current?.stop();
+      // Unmount cleanup; fire and forget is fine since the ref is cleared.
+      void engineRef.current?.stop();
       engineRef.current = null;
     };
   }, []);

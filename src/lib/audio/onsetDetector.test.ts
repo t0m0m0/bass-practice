@@ -95,4 +95,22 @@ describe("OnsetDetector", () => {
     const result2 = detector.process(makeBuffer(0.15), 200);
     expect(result2).not.toBeNull();
   });
+
+  it("time-based re-arm: releases after releaseTimeoutMs when signal is in mid-range", () => {
+    // releaseTimeoutMs default = 200ms; threshold = 0.02, release floor = 0.01.
+    // A slowly-decaying bass note stays in [0.01, 0.02) forever without either
+    // hysteresis branch firing — time-based re-arm handles that.
+    const d = new OnsetDetector({
+      rmsThreshold: 0.02,
+      releaseTimeoutMs: 200,
+    });
+    expect(d.process(makeBuffer(0.05), 0)).not.toBeNull();
+    // Mid-range: doesn't cross release floor
+    expect(d.process(makeBuffer(0.015), 100)).toBeNull();
+    expect(d.process(makeBuffer(0.015), 250)).toBeNull();
+    // After timeout elapsed and mid-range seen, next above-threshold fires
+    const onset = d.process(makeBuffer(0.05), 300);
+    expect(onset).not.toBeNull();
+    expect(onset!.timeMs).toBe(300);
+  });
 });

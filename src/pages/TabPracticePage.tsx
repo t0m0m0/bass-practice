@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { tabPresets } from "../data/tabPresets";
 import { useAudioInput } from "../hooks/useAudioInput";
@@ -5,6 +6,7 @@ import { useTabPractice } from "../hooks/useTabPractice";
 import { AsciiTabDisplay } from "../components/practice/AsciiTabDisplay";
 import { MetronomeControls } from "../components/practice/MetronomeControls";
 import { TimingFeedback } from "../components/practice/TimingFeedback";
+import type { TabPreset } from "../types/practice";
 
 export function TabPracticePage() {
   const { presetId } = useParams<{ presetId: string }>();
@@ -24,8 +26,6 @@ export function TabPracticePage() {
   return <TabPracticeContent preset={preset} />;
 }
 
-import type { TabPreset } from "../types/practice";
-
 interface TabPracticeContentProps {
   preset: TabPreset;
 }
@@ -33,15 +33,22 @@ interface TabPracticeContentProps {
 function TabPracticeContent({ preset }: TabPracticeContentProps) {
   const audio = useAudioInput();
   const practice = useTabPractice(preset, audio.engine);
+  const [startError, setStartError] = useState<string | null>(null);
 
   const handleStart = async () => {
-    if (!audio.isListening) {
-      await audio.start();
+    setStartError(null);
+    try {
+      if (!audio.isListening) {
+        await audio.start();
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await practice.startSession();
+    } catch (err) {
+      setStartError(err instanceof Error ? err.message : String(err));
     }
-    // Small delay to ensure audio is ready
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    await practice.startSession();
   };
+
+  const displayedError = startError ?? audio.error;
 
   return (
     <div className="space-y-6">
@@ -76,12 +83,21 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
       <MetronomeControls
         bpm={practice.metronome.bpm}
         isPlaying={practice.metronome.isPlaying}
-        isAudioReady={audio.isListening || audio.isPermissionGranted || true}
+        isAudioReady={audio.isListening || audio.isPermissionGranted}
         phase={practice.phase}
         onBpmChange={practice.metronome.setBpm}
         onStart={handleStart}
         onStop={practice.stopSession}
       />
+
+      {displayedError && (
+        <div
+          role="alert"
+          className="bg-red-950/40 border border-red-800 text-red-200 text-sm rounded px-4 py-3"
+        >
+          {displayedError}
+        </div>
+      )}
 
       {/* Feedback */}
       <TimingFeedback
