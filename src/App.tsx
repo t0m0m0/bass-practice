@@ -1,5 +1,6 @@
 import { AudioSetup } from "./components/audio/AudioSetup";
 import { PitchDisplay } from "./components/audio/PitchDisplay";
+import { SensitivitySlider } from "./components/audio/SensitivitySlider";
 import { useAudioInput } from "./hooks/useAudioInput";
 import { usePitchDetection } from "./hooks/usePitchDetection";
 
@@ -23,6 +24,11 @@ function App() {
           onStart={audio.start}
           onStop={audio.stop}
           onSwitchDevice={audio.switchDevice}
+        />
+
+        <SensitivitySlider
+          clarityThreshold={audio.clarityThreshold}
+          onThresholdChange={audio.setClarityThreshold}
         />
 
         {audio.isListening && <PitchDisplay pitch={pitch} />}

@@ -12,6 +12,14 @@ export class AudioEngine {
     return this.audioContext?.sampleRate ?? 48000;
   }
 
+  get clarityThreshold(): number {
+    return this.pitchAnalyzer.clarityThreshold;
+  }
+
+  set clarityThreshold(value: number) {
+    this.pitchAnalyzer.clarityThreshold = value;
+  }
+
   get isActive(): boolean {
     return this.audioContext !== null && this.audioContext.state === "running";
   }
