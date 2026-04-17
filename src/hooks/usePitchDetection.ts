@@ -16,11 +16,7 @@ export function usePitchDetection(
   );
 
   useEffect(() => {
-    if (!engine || !isListening) {
-      setPitch(null);
-      lastValidRef.current = null;
-      return;
-    }
+    if (!engine || !isListening) return;
 
     const update = () => {
       const result = engine.detectPitch();
@@ -51,7 +47,12 @@ export function usePitchDetection(
     };
 
     animFrameRef.current = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(animFrameRef.current);
+    return () => {
+      cancelAnimationFrame(animFrameRef.current);
+      // engine が切れた・停止した際にピッチをリセット
+      setPitch(null);
+      lastValidRef.current = null;
+    };
   }, [engine, isListening]);
 
   return { pitch };
