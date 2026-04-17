@@ -6,7 +6,7 @@ import { AudioEngine } from "../lib/audio/AudioEngine";
 // AudioEngine モジュールをまるごとモック化
 const mocks = vi.hoisted(() => ({
   engineStart: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-  engineStop: vi.fn(),
+  engineStop: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   engineGetInputLevel: vi.fn().mockReturnValue(0),
   engineIsActive: false,
   enumerateDevices: vi.fn<() => Promise<MediaDeviceInfo[]>>().mockResolvedValue(
@@ -157,8 +157,8 @@ describe("useAudioInput", () => {
       await act(async () => {
         await result.current.start();
       });
-      act(() => {
-        result.current.stop();
+      await act(async () => {
+        await result.current.stop();
       });
       expect(result.current.isListening).toBe(false);
     });
@@ -168,8 +168,8 @@ describe("useAudioInput", () => {
       await act(async () => {
         await result.current.start();
       });
-      act(() => {
-        result.current.stop();
+      await act(async () => {
+        await result.current.stop();
       });
       expect(result.current.inputLevel).toBe(0);
     });
@@ -179,8 +179,8 @@ describe("useAudioInput", () => {
       await act(async () => {
         await result.current.start();
       });
-      act(() => {
-        result.current.stop();
+      await act(async () => {
+        await result.current.stop();
       });
       expect(mocks.engineStop).toHaveBeenCalled();
     });
@@ -190,8 +190,8 @@ describe("useAudioInput", () => {
       await act(async () => {
         await result.current.start();
       });
-      act(() => {
-        result.current.stop();
+      await act(async () => {
+        await result.current.stop();
       });
       expect(result.current.engine).toBeNull();
     });

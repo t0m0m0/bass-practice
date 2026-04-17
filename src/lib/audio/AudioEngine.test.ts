@@ -120,28 +120,28 @@ describe("AudioEngine", () => {
     it("stop() 後は isActive が false", async () => {
       const engine = new AudioEngine();
       await engine.start();
-      engine.stop();
+      await engine.stop();
       expect(engine.isActive).toBe(false);
     });
 
     it("stop() でストリームのトラックを停止する", async () => {
       const engine = new AudioEngine();
       await engine.start();
-      engine.stop();
+      await engine.stop();
       expect(mockTrackStop).toHaveBeenCalled();
     });
 
     it("stop() で AudioContext を閉じる", async () => {
       const engine = new AudioEngine();
       await engine.start();
-      engine.stop();
+      await engine.stop();
       expect(mockContextClose).toHaveBeenCalled();
     });
 
     it("stop() 後の getTimeDomainData は空を返す", async () => {
       const engine = new AudioEngine();
       await engine.start();
-      engine.stop();
+      await engine.stop();
       expect(engine.getTimeDomainData().length).toBe(0);
     });
   });
