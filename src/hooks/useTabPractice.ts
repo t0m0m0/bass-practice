@@ -122,6 +122,10 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     targetsRef.current = [];
     onsetDetectorRef.current.reset();
 
+    // Prepare AudioContext synchronously inside the click handler's call-stack
+    // so the browser unlocks audio output before the async countdown gap.
+    metronome.initContext();
+
     setPhase("countdown");
     await new Promise((resolve) => setTimeout(resolve, 500));
 

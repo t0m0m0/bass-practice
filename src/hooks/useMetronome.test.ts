@@ -20,6 +20,7 @@ vi.mock("../lib/audio/MetronomeEngine", () => ({
     stop = mockStop.mockImplementation(async () => {
       mockIsPlaying = false;
     });
+    initContext = vi.fn();
     onBeat = vi.fn((cb: BeatCallback) => {
       engineBeatCallback = cb;
       return () => {

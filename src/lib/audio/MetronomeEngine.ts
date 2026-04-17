@@ -82,14 +82,41 @@ export class MetronomeEngine {
     };
   }
 
+  /**
+   * Prepare the AudioContext synchronously within a user-gesture callback.
+   * Browsers require AudioContext creation / resume to happen inside a
+   * click handler's call-stack; any intervening setTimeout or await breaks
+   * the gesture chain and leaves the context suspended.
+   *
+   * Call this *before* any async gap (e.g. countdown timer) and then call
+   * `start()` when you're ready to begin playback.
+   */
+  initContext(): void {
+    if (this.audioContext) return;
+    const ctx = new AudioContext();
+    // resume() returns a promise but the important thing is that the browser
+    // *unlocks* the context synchronously when called inside a gesture handler.
+    void ctx.resume();
+    this.audioContext = ctx;
+  }
+
   async start(): Promise<void> {
     if (this._isPlaying) return;
 
-    const ctx = new AudioContext();
-    if (ctx.state === "suspended") {
-      await ctx.resume();
+    if (!this.audioContext) {
+      this.initContext();
     }
-    this.audioContext = ctx;
+    const ctx = this.audioContext!;
+    if (ctx.state === "suspended") {
+      // Race against a timeout so we don't hang forever in environments
+      // where the browser refuses to unlock the AudioContext.
+      const resumed = ctx.resume();
+      const timeout = new Promise<"timeout">((r) => setTimeout(() => r("timeout"), 2000));
+      const result = await Promise.race([resumed.then(() => "ok" as const), timeout]);
+      if (result === "timeout" && ctx.state === "suspended") {
+        throw new Error("AudioContext could not be resumed. Try clicking the Start button again.");
+      }
+    }
     this._isPlaying = true;
     this.currentBeat = 0;
     this.nextNoteTime = ctx.currentTime + 0.05; // small initial delay

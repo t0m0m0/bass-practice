@@ -10,28 +10,46 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
   const [bpm, setBpmState] = useState(initialBpm);
   const externalCallbackRef = useRef<BeatCallback | null>(null);
 
-  const start = useCallback(async () => {
-    if (engineRef.current?.isPlaying) return;
-
+  /**
+   * Prepare the AudioContext synchronously inside a user-gesture handler.
+   * Call this before any async gap (e.g. countdown delay) so the browser
+   * unlocks audio output.  `start()` will reuse the prepared context.
+   */
+  const initContext = useCallback(() => {
+    if (engineRef.current) return;
     const engine = new MetronomeEngine({ bpm, beatsPerMeasure, beatUnit });
-
     engine.onBeat((beat, time) => {
       setCurrentBeat(beat);
       externalCallbackRef.current?.(beat, time);
     });
+    engine.initContext();
+    engineRef.current = engine;
+    setBpmState(engine.bpm);
+  }, [bpm, beatsPerMeasure, beatUnit]);
+
+  const start = useCallback(async () => {
+    if (engineRef.current?.isPlaying) return;
+
+    // If initContext wasn't called beforehand, create the engine now.
+    if (!engineRef.current) {
+      const engine = new MetronomeEngine({ bpm, beatsPerMeasure, beatUnit });
+      engine.onBeat((beat, time) => {
+        setCurrentBeat(beat);
+        externalCallbackRef.current?.(beat, time);
+      });
+      engineRef.current = engine;
+      setBpmState(engine.bpm);
+    }
 
     try {
-      await engine.start();
+      await engineRef.current.start();
     } catch (err) {
       // Make sure we don't leak a half-initialized AudioContext.
-      await engine.stop().catch(() => {});
+      await engineRef.current.stop().catch(() => {});
+      engineRef.current = null;
       throw err;
     }
 
-    engineRef.current = engine;
-    // Surface the engine's (possibly clamped) BPM so downstream consumers agree
-    // with the actual click interval.
-    setBpmState(engine.bpm);
     setIsPlaying(true);
   }, [bpm, beatsPerMeasure, beatUnit]);
 
@@ -73,6 +91,7 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
     currentBeat,
     bpm,
     setBpm,
+    initContext,
     start,
     stop,
     onBeat,
