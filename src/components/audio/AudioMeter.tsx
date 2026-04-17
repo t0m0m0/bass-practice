@@ -3,7 +3,8 @@ interface AudioMeterProps {
 }
 
 export function AudioMeter({ level }: AudioMeterProps) {
-  const normalizedLevel = Math.min(level * 5, 1);
+  const db = 20 * Math.log10(Math.max(level, 1e-6));
+  const normalizedLevel = Math.max(0, Math.min(1, (db + 60) / 60));
   const percentage = normalizedLevel * 100;
 
   const getColor = () => {
