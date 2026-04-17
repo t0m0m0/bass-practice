@@ -15,6 +15,7 @@ export function useAudioInput() {
   });
 
   const levelAnimationRef = useRef<number>(0);
+  const [clarityThreshold, setClarityThresholdState] = useState(0.85);
 
   const updateLevel = useCallback(() => {
     if (engineRef.current?.isActive) {
@@ -84,9 +85,18 @@ export function useAudioInput() {
     };
   }, []);
 
+  const setClarityThreshold = useCallback((value: number) => {
+    setClarityThresholdState(value);
+    if (engineRef.current) {
+      engineRef.current.clarityThreshold = value;
+    }
+  }, []);
+
   return {
     ...state,
     engine,
+    clarityThreshold,
+    setClarityThreshold,
     start,
     stop,
     switchDevice,

@@ -9,7 +9,7 @@ export class PitchAnalyzer {
   private detector: PitchDetector<Float32Array> | null = null;
   private detectorInputLength = 0;
 
-  clarityThreshold = 0.9;
+  clarityThreshold = 0.85;
 
   detectPitch(buffer: Float32Array, sampleRate: number): PitchResult {
     const now = Date.now();
