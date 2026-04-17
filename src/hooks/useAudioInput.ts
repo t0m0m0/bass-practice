@@ -79,6 +79,8 @@ export function useAudioInput() {
     return () => {
       cancelAnimationFrame(levelAnimationRef.current);
       engineRef.current?.stop();
+      engineRef.current = null;
+      setEngine(null);
     };
   }, []);
 
