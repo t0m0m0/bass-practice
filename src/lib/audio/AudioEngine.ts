@@ -37,7 +37,7 @@ export class AudioEngine {
     this.stream = await navigator.mediaDevices.getUserMedia(constraints);
     this.audioContext = new AudioContext();
     this.analyserNode = this.audioContext.createAnalyser();
-    this.analyserNode.fftSize = 4096;
+    this.analyserNode.fftSize = 8192;
 
     this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
     this.sourceNode.connect(this.analyserNode);
