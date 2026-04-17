@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head><title>Audio Debug</title></head>
+<body style="background:#1e293b;color:#e2e8f0;font-family:sans-serif;padding:2rem;">
+  <h1>Audio Debug</h1>
+  <p>このページでStartを押してクリック音が聞こえるか確認してください。</p>
+  <button id="btn" style="font-size:1.5rem;padding:1rem 2rem;cursor:pointer;">Start Metronome</button>
+  <pre id="log" style="margin-top:1rem;font-size:0.9rem;"></pre>
+  <script>
+    const log = document.getElementById('log');
+    const btn = document.getElementById('btn');
+    function addLog(msg) {
+      log.textContent += new Date().toISOString().substr(11,12) + ' ' + msg + '\n';
+    }
+    btn.addEventListener('click', () => {
+      addLog('Click handler entered');
+      // Step 1: Create AudioContext synchronously in click handler
+      const ctx = new AudioContext();
+      addLog('AudioContext created, state=' + ctx.state);
+      // Step 2: resume() synchronously in click handler
+      ctx.resume().then(() => addLog('resume() resolved, state=' + ctx.state));
+      addLog('After resume() call, state=' + ctx.state);
+      // Step 3: Schedule clicks
+      let nextTime = ctx.currentTime + 0.1;
+      const bpm = 80;
+      const interval = 60 / bpm;
+      function scheduleClicks() {
+        while (nextTime < ctx.currentTime + 0.2) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.frequency.value = 1000;
+          gain.gain.setValueAtTime(1.0, nextTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, nextTime + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(nextTime);
+          osc.stop(nextTime + 0.08);
+          nextTime += interval;
+        }
+      }
+      setInterval(() => {
+        if (ctx.state === 'running') scheduleClicks();
+        addLog('tick state=' + ctx.state + ' currentTime=' + ctx.currentTime.toFixed(3));
+      }, 50);
+      addLog('Scheduler started');
+      btn.disabled = true;
+      btn.textContent = 'Playing...';
+    });
+  </script>
+</body>
+</html>

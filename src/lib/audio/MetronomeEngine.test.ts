@@ -11,7 +11,7 @@ const mockOscillator = {
 
 const mockGain = {
   connect: vi.fn(),
-  gain: { value: 0, exponentialRampToValueAtTime: vi.fn() },
+  gain: { value: 0, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
 };
 
 const mockAudioContext: {

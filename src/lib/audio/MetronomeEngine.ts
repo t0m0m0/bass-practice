@@ -167,14 +167,17 @@ export class MetronomeEngine {
 
     const isAccent = beat % this._beatsPerMeasure === 0;
     osc.frequency.value = isAccent ? 1000 : 800;
-    gain.gain.value = isAccent ? 0.8 : 0.4;
+
+    const peakGain = isAccent ? 1.0 : 0.6;
+    // Hold at peak for a short attack, then decay
+    gain.gain.setValueAtTime(peakGain, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
 
     osc.connect(gain);
     gain.connect(this.audioContext.destination);
 
     osc.start(time);
-    osc.stop(time + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+    osc.stop(time + 0.08);
   }
 
   private advanceBeat(): void {
