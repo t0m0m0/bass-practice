@@ -6,9 +6,21 @@ type BeatCallback = (beat: number, time: number) => void;
 export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUnit: number) {
   const engineRef = useRef<MetronomeEngine | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentBeat, setCurrentBeat] = useState(0);
   const [bpm, setBpmState] = useState(initialBpm);
   const externalCallbackRef = useRef<BeatCallback | null>(null);
+
+  /** Create a MetronomeEngine and wire up the beat callback. */
+  const ensureEngine = useCallback(() => {
+    if (engineRef.current) return engineRef.current;
+
+    const engine = new MetronomeEngine({ bpm, beatsPerMeasure, beatUnit });
+    engine.onBeat((beat, time) => {
+      externalCallbackRef.current?.(beat, time);
+    });
+    engineRef.current = engine;
+    setBpmState(engine.bpm);
+    return engine;
+  }, [bpm, beatsPerMeasure, beatUnit]);
 
   /**
    * Prepare the AudioContext synchronously inside a user-gesture handler.
@@ -16,48 +28,28 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
    * unlocks audio output.  `start()` will reuse the prepared context.
    */
   const initContext = useCallback(() => {
-    if (engineRef.current) return;
-    const engine = new MetronomeEngine({ bpm, beatsPerMeasure, beatUnit });
-    engine.onBeat((beat, time) => {
-      setCurrentBeat(beat);
-      externalCallbackRef.current?.(beat, time);
-    });
+    const engine = ensureEngine();
     engine.initContext();
-    engineRef.current = engine;
-    setBpmState(engine.bpm);
-  }, [bpm, beatsPerMeasure, beatUnit]);
+  }, [ensureEngine]);
 
   const start = useCallback(async () => {
     if (engineRef.current?.isPlaying) return;
 
-    // If initContext wasn't called beforehand, create the engine now.
-    if (!engineRef.current) {
-      const engine = new MetronomeEngine({ bpm, beatsPerMeasure, beatUnit });
-      engine.onBeat((beat, time) => {
-        setCurrentBeat(beat);
-        externalCallbackRef.current?.(beat, time);
-      });
-      engineRef.current = engine;
-      setBpmState(engine.bpm);
-    }
-
+    const engine = ensureEngine();
     try {
-      await engineRef.current.start();
+      await engine.start();
     } catch (err) {
-      // Make sure we don't leak a half-initialized AudioContext.
-      await engineRef.current.stop().catch(() => {});
+      await engine.stop().catch(() => {});
       engineRef.current = null;
       throw err;
     }
-
     setIsPlaying(true);
-  }, [bpm, beatsPerMeasure, beatUnit]);
+  }, [ensureEngine]);
 
   const stop = useCallback(async () => {
     const engine = engineRef.current;
     engineRef.current = null;
     setIsPlaying(false);
-    setCurrentBeat(0);
     await engine?.stop();
   }, []);
 
@@ -80,7 +72,6 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
 
   useEffect(() => {
     return () => {
-      // Unmount cleanup; fire and forget is fine since the ref is cleared.
       void engineRef.current?.stop();
       engineRef.current = null;
     };
@@ -88,7 +79,6 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
 
   return useMemo(() => ({
     isPlaying,
-    currentBeat,
     bpm,
     setBpm,
     initContext,
@@ -96,5 +86,5 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
     stop,
     onBeat,
     getCurrentTimeMs,
-  }), [isPlaying, currentBeat, bpm, setBpm, initContext, start, stop, onBeat, getCurrentTimeMs]);
+  }), [isPlaying, bpm, setBpm, initContext, start, stop, onBeat, getCurrentTimeMs]);
 }

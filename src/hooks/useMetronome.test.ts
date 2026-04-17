@@ -135,6 +135,5 @@ describe("useMetronome", () => {
     });
 
     expect(cb).toHaveBeenCalledWith(3, 1.25);
-    expect(result.current.currentBeat).toBe(3);
   });
 });

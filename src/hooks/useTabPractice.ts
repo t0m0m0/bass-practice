@@ -18,10 +18,13 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     preset.timeSignature.beatUnit,
   );
 
-  // Keep a ref to the latest metronome so effects/callbacks can access
-  // stable function references without re-firing cleanup.
+  // Ref keeps the latest metronome value so callbacks/effects can access it
+  // without depending on the metronome object identity (which triggers
+  // cleanup effects and causes AudioContext to be destroyed mid-session).
   const metronomeRef = useRef(metronome);
-  metronomeRef.current = metronome;
+  useEffect(() => {
+    metronomeRef.current = metronome;
+  }, [metronome]);
 
   const [phase, setPhase] = useState<TabSessionPhase>("idle");
   const [timingEvents, setTimingEvents] = useState<TimingEvent[]>([]);
@@ -42,9 +45,9 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
 
   const totalBeats = preset.timeSignature.beatsPerMeasure * preset.measures;
 
-  // Ref holds the latest loop body so we can drive a single RAF chain without
-  // re-closing over stale state. Effects update the ref; the RAF schedules
-  // `() => processOnsetsRef.current()`.
+  // --- Onset detection RAF loop ---
+  // Ref holds the latest loop body so we can drive a single RAF chain
+  // without re-closing over stale state.
   const processOnsetsRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -82,6 +85,16 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     };
   }, [audioEngine]);
 
+  // Start / stop the RAF loop based on phase.
+  useEffect(() => {
+    if (phase !== "playing" || !audioEngine?.isActive) return;
+    animFrameRef.current = requestAnimationFrame(() =>
+      processOnsetsRef.current(),
+    );
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [phase, audioEngine]);
+
+  // --- Beat handling ---
   const handleBeat = useCallback(
     (beat: number, timeSec: number) => {
       const beatTimeMs = timeSec * 1000;
@@ -110,8 +123,9 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
 
   useEffect(() => {
     metronome.onBeat(handleBeat);
-  }, [metronome.onBeat, handleBeat]);
+  }, [metronome, handleBeat]);
 
+  // --- Session lifecycle ---
   const startSession = useCallback(async () => {
     setTimingEvents([]);
     setCurrentBeat(-1);
@@ -122,8 +136,8 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     targetsRef.current = [];
     onsetDetectorRef.current.reset();
 
-    // Prepare AudioContext synchronously inside the click handler's call-stack
-    // so the browser unlocks audio output before the async countdown gap.
+    // Prepare AudioContext synchronously inside the click handler's
+    // call-stack so the browser unlocks audio output before the async gap.
     metronomeRef.current.initContext();
 
     setPhase("countdown");
@@ -150,17 +164,6 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     setPhase("finished");
   }, []);
 
-  // Sole RAF driver: starts when we enter "playing" and cancels on exit.
-  useEffect(() => {
-    if (phase !== "playing" || !audioEngine?.isActive) return;
-    animFrameRef.current = requestAnimationFrame(() =>
-      processOnsetsRef.current(),
-    );
-    return () => {
-      cancelAnimationFrame(animFrameRef.current);
-    };
-  }, [phase, audioEngine]);
-
   // Unmount-only cleanup
   useEffect(() => {
     return () => {
@@ -169,15 +172,13 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     };
   }, []);
 
-  const stats = computeStats(timingEvents);
-
   return {
     phase,
     currentBeat,
     loop,
     timingEvents,
     lastEvent,
-    stats,
+    stats: computeStats(timingEvents),
     metronome: {
       bpm: metronome.bpm,
       setBpm: metronome.setBpm,
