@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { MetronomeEngine } from "../lib/audio/MetronomeEngine";
 
 type BeatCallback = (beat: number, time: number) => void;
@@ -86,7 +86,7 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
     };
   }, []);
 
-  return {
+  return useMemo(() => ({
     isPlaying,
     currentBeat,
     bpm,
@@ -96,5 +96,5 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
     stop,
     onBeat,
     getCurrentTimeMs,
-  };
+  }), [isPlaying, currentBeat, bpm, setBpm, initContext, start, stop, onBeat, getCurrentTimeMs]);
 }

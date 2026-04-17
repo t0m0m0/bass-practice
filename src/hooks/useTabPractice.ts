@@ -18,6 +18,11 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     preset.timeSignature.beatUnit,
   );
 
+  // Keep a ref to the latest metronome so effects/callbacks can access
+  // stable function references without re-firing cleanup.
+  const metronomeRef = useRef(metronome);
+  metronomeRef.current = metronome;
+
   const [phase, setPhase] = useState<TabSessionPhase>("idle");
   const [timingEvents, setTimingEvents] = useState<TimingEvent[]>([]);
   const [currentBeat, setCurrentBeat] = useState(-1);
@@ -46,7 +51,7 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     processOnsetsRef.current = () => {
       if (!audioEngine?.isActive || phaseRef.current !== "playing") return;
 
-      const timeMs = metronome.getCurrentTimeMs();
+      const timeMs = metronomeRef.current.getCurrentTimeMs();
       if (timeMs === null) {
         animFrameRef.current = requestAnimationFrame(() =>
           processOnsetsRef.current(),
@@ -75,18 +80,14 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
         processOnsetsRef.current(),
       );
     };
-  }, [audioEngine, metronome]);
+  }, [audioEngine]);
 
   const handleBeat = useCallback(
     (beat: number, timeSec: number) => {
-      // Use the scheduled click time (up to SCHEDULE_AHEAD_S in the future)
-      // rather than AudioContext.currentTime so timing targets align with the
-      // audible click instead of lagging by up to 100ms.
       const beatTimeMs = timeSec * 1000;
       const beatInPattern = beat % totalBeats;
       setCurrentBeat(beatInPattern);
 
-      // Beat 0 fires at both the very first beat and the start of each loop.
       if (beatInPattern === 0) {
         if (beat > 0) {
           const misses = generateMisses(targetsRef.current, hitBeatsRef.current);
@@ -97,20 +98,19 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
           setLoop((prev) => prev + 1);
         }
         hitBeatsRef.current = new Set();
-        // Use the engine's (possibly clamped) BPM so targets and clicks agree.
         targetsRef.current = buildTimingTargets(
           preset.notes,
-          metronome.bpm,
+          metronomeRef.current.bpm,
           beatTimeMs,
         );
       }
     },
-    [totalBeats, metronome, preset],
+    [totalBeats, preset],
   );
 
   useEffect(() => {
     metronome.onBeat(handleBeat);
-  }, [metronome, handleBeat]);
+  }, [metronome.onBeat, handleBeat]);
 
   const startSession = useCallback(async () => {
     setTimingEvents([]);
@@ -124,24 +124,23 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
 
     // Prepare AudioContext synchronously inside the click handler's call-stack
     // so the browser unlocks audio output before the async countdown gap.
-    metronome.initContext();
+    metronomeRef.current.initContext();
 
     setPhase("countdown");
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     try {
-      await metronome.start();
+      await metronomeRef.current.start();
     } catch (err) {
       setPhase("idle");
       throw err;
     }
-    // targetsRef is populated by handleBeat on the first beat callback.
     setPhase("playing");
-  }, [metronome]);
+  }, []);
 
   const stopSession = useCallback(async () => {
     cancelAnimationFrame(animFrameRef.current);
-    await metronome.stop();
+    await metronomeRef.current.stop();
 
     const misses = generateMisses(targetsRef.current, hitBeatsRef.current);
     const finalEvents = [...allEventsRef.current, ...misses];
@@ -149,7 +148,7 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     setTimingEvents(finalEvents);
 
     setPhase("finished");
-  }, [metronome]);
+  }, []);
 
   // Sole RAF driver: starts when we enter "playing" and cancels on exit.
   useEffect(() => {
@@ -162,12 +161,13 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     };
   }, [phase, audioEngine]);
 
+  // Unmount-only cleanup
   useEffect(() => {
     return () => {
       cancelAnimationFrame(animFrameRef.current);
-      void metronome.stop();
+      void metronomeRef.current.stop();
     };
-  }, [metronome]);
+  }, []);
 
   const stats = computeStats(timingEvents);
 
