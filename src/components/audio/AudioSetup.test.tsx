@@ -17,6 +17,7 @@ const defaultProps = {
   isPermissionGranted: false,
   inputLevel: 0,
   availableDevices: [],
+  selectedDeviceId: null,
   error: null,
   onStart: vi.fn(),
   onStop: vi.fn(),
@@ -139,6 +140,18 @@ describe("AudioSetup", () => {
         />,
       );
       expect(screen.getByText("Audio Input abcdefgh")).toBeInTheDocument();
+    });
+
+    it("selectedDeviceId がセレクタの value に反映される", () => {
+      render(
+        <AudioSetup
+          {...defaultProps}
+          isPermissionGranted
+          availableDevices={devices}
+          selectedDeviceId="mic2"
+        />,
+      );
+      expect(screen.getByRole("combobox")).toHaveValue("mic2");
     });
 
     it("セレクタ変更で onSwitchDevice(deviceId) が呼ばれる", () => {

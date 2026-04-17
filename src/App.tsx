@@ -20,6 +20,7 @@ function App() {
           isPermissionGranted={audio.isPermissionGranted}
           inputLevel={audio.inputLevel}
           availableDevices={audio.availableDevices}
+          selectedDeviceId={audio.selectedDeviceId}
           error={audio.error}
           onStart={audio.start}
           onStop={audio.stop}
