@@ -5,6 +5,7 @@ interface AudioSetupProps {
   isPermissionGranted: boolean;
   inputLevel: number;
   availableDevices: MediaDeviceInfo[];
+  selectedDeviceId: string | null;
   error: string | null;
   onStart: (deviceId?: string) => void;
   onStop: () => void;
@@ -16,6 +17,7 @@ export function AudioSetup({
   isPermissionGranted,
   inputLevel,
   availableDevices,
+  selectedDeviceId,
   error,
   onStart,
   onStop,
@@ -50,6 +52,7 @@ export function AudioSetup({
 
         {isPermissionGranted && availableDevices.length > 0 && (
           <select
+            value={selectedDeviceId ?? ""}
             onChange={(e) => onSwitchDevice(e.target.value)}
             className="bg-slate-700 text-slate-200 rounded-lg px-3 py-2 text-sm border border-slate-600 flex-1"
           >
