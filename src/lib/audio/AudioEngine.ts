@@ -1,16 +1,25 @@
 import { PitchAnalyzer } from "./pitchDetection";
 import type { PitchResult } from "../../types/audio";
 
+export type AudioEngineState =
+  | { status: "idle" }
+  | {
+      status: "active";
+      audioContext: AudioContext;
+      analyserNode: AnalyserNode;
+      sourceNode: MediaStreamAudioSourceNode;
+      stream: MediaStream;
+    };
+
 export class AudioEngine {
-  private audioContext: AudioContext | null = null;
-  private analyserNode: AnalyserNode | null = null;
-  private sourceNode: MediaStreamAudioSourceNode | null = null;
-  private stream: MediaStream | null = null;
+  private state: AudioEngineState = { status: "idle" };
   private pitchAnalyzer = new PitchAnalyzer();
   private timeDomainBuffer: Float32Array<ArrayBuffer> | null = null;
 
   get sampleRate(): number {
-    return this.audioContext?.sampleRate ?? 48000;
+    return this.state.status === "active"
+      ? this.state.audioContext.sampleRate
+      : 48000;
   }
 
   get clarityThreshold(): number {
@@ -22,7 +31,10 @@ export class AudioEngine {
   }
 
   get isActive(): boolean {
-    return this.audioContext !== null && this.audioContext.state === "running";
+    return (
+      this.state.status === "active" &&
+      this.state.audioContext.state === "running"
+    );
   }
 
   async start(deviceId?: string): Promise<void> {
@@ -35,37 +47,43 @@ export class AudioEngine {
       },
     };
 
-    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-    this.audioContext = new AudioContext();
-    this.analyserNode = this.audioContext.createAnalyser();
-    this.analyserNode.fftSize = 8192;
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const audioContext = new AudioContext();
+    const analyserNode = audioContext.createAnalyser();
+    analyserNode.fftSize = 8192;
 
-    this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
-    this.sourceNode.connect(this.analyserNode);
+    const sourceNode = audioContext.createMediaStreamSource(stream);
+    sourceNode.connect(analyserNode);
+
+    this.state = { status: "active", audioContext, analyserNode, sourceNode, stream };
   }
 
   async stop(): Promise<void> {
-    this.stream?.getTracks().forEach((track) => track.stop());
-    this.sourceNode?.disconnect();
-    await this.audioContext?.close();
-    this.stream = null;
-    this.sourceNode = null;
-    this.analyserNode = null;
-    this.audioContext = null;
+    if (this.state.status !== "active") return;
+
+    const { stream, sourceNode, audioContext } = this.state;
+    this.state = { status: "idle" };
     this.timeDomainBuffer = null;
+
+    stream.getTracks().forEach((track) => track.stop());
+    sourceNode.disconnect();
+    await audioContext.close();
   }
 
   getTimeDomainData(): Float32Array {
-    if (!this.analyserNode) return new Float32Array(0);
-    if (!this.timeDomainBuffer || this.timeDomainBuffer.length !== this.analyserNode.fftSize) {
-      this.timeDomainBuffer = new Float32Array(this.analyserNode.fftSize);
+    if (this.state.status !== "active") return new Float32Array(0);
+
+    const { analyserNode } = this.state;
+    if (!this.timeDomainBuffer || this.timeDomainBuffer.length !== analyserNode.fftSize) {
+      this.timeDomainBuffer = new Float32Array(analyserNode.fftSize);
     }
-    this.analyserNode.getFloatTimeDomainData(this.timeDomainBuffer);
+    analyserNode.getFloatTimeDomainData(this.timeDomainBuffer);
     return this.timeDomainBuffer;
   }
 
   getInputLevel(): number {
-    if (!this.analyserNode) return 0;
+    if (this.state.status !== "active") return 0;
+
     const data = this.getTimeDomainData();
     let sum = 0;
     for (let i = 0; i < data.length; i++) {
