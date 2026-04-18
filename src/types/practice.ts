@@ -52,13 +52,24 @@ export interface TabPreset {
 
 export type TimingJudgment = "hit" | "early" | "late" | "miss";
 
-export interface TimingEvent {
+interface TimingEventBase {
   targetBeat: number;
   targetTimeMs: number;
-  onsetTimeMs: number | null; // null for misses
-  deltaMs: number; // positive = late, negative = early
-  judgment: TimingJudgment;
 }
+
+export interface HitTimingEvent extends TimingEventBase {
+  judgment: "hit" | "early" | "late";
+  onsetTimeMs: number;
+  deltaMs: number; // positive = late, negative = early
+}
+
+export interface MissTimingEvent extends TimingEventBase {
+  judgment: "miss";
+  onsetTimeMs: null;
+  deltaMs: null;
+}
+
+export type TimingEvent = HitTimingEvent | MissTimingEvent;
 
 export type TabSessionPhase = "idle" | "countdown" | "playing" | "finished";
 
