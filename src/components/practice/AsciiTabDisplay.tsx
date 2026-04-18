@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { TabPreset, TabNote } from "../../types/practice";
 
 interface AsciiTabDisplayProps {
@@ -11,14 +12,17 @@ const STRING_LABELS = ["G", "D", "A", "E"];
 export function AsciiTabDisplay({ preset, currentBeat, isPlaying }: AsciiTabDisplayProps) {
   const totalBeats = preset.timeSignature.beatsPerMeasure * preset.measures;
 
-  // Build a map: string -> beat -> fret number
-  const noteMap = new Map<number, Map<number, TabNote>>();
-  for (const note of preset.notes) {
-    if (!noteMap.has(note.string)) {
-      noteMap.set(note.string, new Map());
+  // Build a map: string -> beat -> fret number (memoized to avoid rebuild on every render)
+  const noteMap = useMemo(() => {
+    const map = new Map<number, Map<number, TabNote>>();
+    for (const note of preset.notes) {
+      if (!map.has(note.string)) {
+        map.set(note.string, new Map());
+      }
+      map.get(note.string)!.set(note.beat, note);
     }
-    noteMap.get(note.string)!.set(note.beat, note);
-  }
+    return map;
+  }, [preset.notes]);
 
   return (
     <div className="bg-slate-800 rounded-lg p-4 font-mono text-sm overflow-x-auto">
