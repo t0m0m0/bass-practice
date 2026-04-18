@@ -8,8 +8,11 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpmState] = useState(initialBpm);
   const bpmRef = useRef(bpm);
-  bpmRef.current = bpm;
   const externalCallbackRef = useRef<BeatCallback | null>(null);
+
+  useEffect(() => {
+    bpmRef.current = bpm;
+  }, [bpm]);
 
   /** Create a MetronomeEngine and wire up the beat callback. */
   const ensureEngine = useCallback(() => {
