@@ -40,6 +40,7 @@ export class PitchAnalyzer {
     const pitchClass = noteName.replace(/[0-9]/g, "");
 
     return {
+      detected: true,
       frequency,
       clarity,
       note: noteName,
@@ -52,10 +53,9 @@ export class PitchAnalyzer {
 
 function nullResult(timestamp: number): PitchResult {
   return {
+    detected: false,
     frequency: 0,
     clarity: 0,
-    note: null,
-    pitchClass: null,
     cents: 0,
     timestamp,
   };

@@ -5,7 +5,7 @@ interface PitchDisplayProps {
 }
 
 export function PitchDisplay({ pitch }: PitchDisplayProps) {
-  const isActive = pitch?.note != null;
+  const isActive = pitch?.detected === true;
 
   return (
     <div className="bg-slate-800 rounded-xl p-6 space-y-4">
@@ -14,7 +14,7 @@ export function PitchDisplay({ pitch }: PitchDisplayProps) {
         <span
           className={`text-6xl font-bold font-mono ${isActive ? "text-slate-100" : "text-slate-600"}`}
         >
-          {pitch?.note ?? "---"}
+          {isActive ? pitch.note : "---"}
         </span>
       </div>
 
