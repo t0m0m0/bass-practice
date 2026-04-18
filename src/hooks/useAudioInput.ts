@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { AudioEngine } from "../lib/audio/AudioEngine";
 import type { AudioInputState } from "../types/audio";
 
@@ -92,7 +92,7 @@ export function useAudioInput() {
     }
   }, []);
 
-  return {
+  return useMemo(() => ({
     ...state,
     engine,
     clarityThreshold,
@@ -100,5 +100,5 @@ export function useAudioInput() {
     start,
     stop,
     switchDevice,
-  };
+  }), [state, engine, clarityThreshold, setClarityThreshold, start, stop, switchDevice]);
 }
