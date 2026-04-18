@@ -7,8 +7,9 @@ import type { PitchResult } from "../types/audio";
 // RAF コールバックを手動で制御するため、テスト内でスタブを上書き
 let rafCallbacks: FrameRequestCallback[];
 
-function makePitch(overrides: Partial<PitchResult> = {}): PitchResult {
+function makePitch(overrides: Partial<PitchResult & { detected: true }> = {}): PitchResult {
   return {
+    detected: true,
     frequency: 110,
     clarity: 0.95,
     note: "A2",
@@ -21,10 +22,9 @@ function makePitch(overrides: Partial<PitchResult> = {}): PitchResult {
 
 function makeNullPitch(): PitchResult {
   return {
+    detected: false,
     frequency: 0,
     clarity: 0,
-    note: null,
-    pitchClass: null,
     cents: 0,
     timestamp: Date.now(),
   };

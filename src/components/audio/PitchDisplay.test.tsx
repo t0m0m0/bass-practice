@@ -3,8 +3,9 @@ import { render, screen } from "@testing-library/react";
 import { PitchDisplay } from "./PitchDisplay";
 import type { PitchResult } from "../../types/audio";
 
-function makePitch(overrides: Partial<PitchResult> = {}): PitchResult {
+function makePitch(overrides: Partial<PitchResult & { detected: true }> = {}): PitchResult {
   return {
+    detected: true,
     frequency: 110.0,
     clarity: 0.95,
     note: "A2",

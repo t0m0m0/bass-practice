@@ -22,11 +22,12 @@ export function usePitchDetection(
       const result = engine.detectPitch();
       const now = Date.now();
 
-      if (result.note) {
+      if (result.detected) {
         lastValidRef.current = { pitch: result, time: now };
         setPitch((prev) => {
           if (
-            prev?.note === result.note &&
+            prev?.detected &&
+            prev.note === result.note &&
             Math.abs(prev.cents - result.cents) < MIN_CENTS_CHANGE
           ) {
             return prev;
