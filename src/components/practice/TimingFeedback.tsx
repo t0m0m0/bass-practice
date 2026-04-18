@@ -46,7 +46,7 @@ export function TimingFeedback({
               >
                 {judgmentLabels[lastEvent.judgment]}
               </div>
-              {lastEvent.deltaMs !== 0 && (
+              {lastEvent.judgment !== "miss" && lastEvent.deltaMs !== 0 && (
                 <div className="text-sm text-slate-400 mt-1">
                   {lastEvent.deltaMs > 0 ? "+" : ""}
                   {lastEvent.deltaMs}ms
@@ -65,7 +65,7 @@ export function TimingFeedback({
                         : "bg-orange-400"
                   }`}
                   style={{
-                    left: `${50 + (lastEvent.deltaMs / 100) * 40}%`,
+                    left: `${50 + ((lastEvent.judgment !== "miss" ? lastEvent.deltaMs : 0) / 100) * 40}%`,
                     transform: "translateX(-50%)",
                   }}
                 />

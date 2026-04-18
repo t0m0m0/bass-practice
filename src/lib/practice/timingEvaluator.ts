@@ -1,4 +1,4 @@
-import type { TimingEvent, TimingJudgment, TabNote } from "../../types/practice";
+import type { TimingEvent, TabNote, HitTimingEvent, MissTimingEvent } from "../../types/practice";
 
 const HIT_WINDOW_MS = 100;
 
@@ -34,7 +34,7 @@ export function evaluateOnset(
   onsetTimeMs: number,
   targets: TimingTarget[],
   alreadyHitBeats: Set<number>,
-): TimingEvent | null {
+): HitTimingEvent | null {
   let closest: TimingTarget | null = null;
   let minDelta = Infinity;
 
@@ -51,7 +51,7 @@ export function evaluateOnset(
     return null;
   }
 
-  const judgment: TimingJudgment =
+  const judgment: "hit" | "early" | "late" =
     Math.abs(minDelta) <= 30 ? "hit" : minDelta < 0 ? "early" : "late";
 
   return {
@@ -69,15 +69,15 @@ export function evaluateOnset(
 export function generateMisses(
   targets: TimingTarget[],
   hitBeats: Set<number>,
-): TimingEvent[] {
+): MissTimingEvent[] {
   return targets
     .filter((t) => !hitBeats.has(t.beat))
     .map((t) => ({
       targetBeat: t.beat,
       targetTimeMs: t.timeMs,
-      onsetTimeMs: null,
-      deltaMs: 0,
-      judgment: "miss" as TimingJudgment,
+      onsetTimeMs: null as null,
+      deltaMs: null as null,
+      judgment: "miss" as const,
     }));
 }
 
@@ -90,12 +90,10 @@ export function computeStats(events: TimingEvent[]): {
 } {
   if (events.length === 0) return { hitRate: 0, avgAbsDeltaMs: 0 };
 
-  const hits = events.filter((e) => e.judgment !== "miss");
+  const hits = events.filter((e): e is import("../../types/practice").HitTimingEvent => e.judgment !== "miss");
   const hitRate = hits.length / events.length;
 
-  const deltas = hits
-    .filter((e) => e.onsetTimeMs !== null)
-    .map((e) => Math.abs(e.deltaMs));
+  const deltas = hits.map((e) => Math.abs(e.deltaMs));
   const avgAbsDeltaMs =
     deltas.length > 0 ? deltas.reduce((a, b) => a + b, 0) / deltas.length : 0;
 

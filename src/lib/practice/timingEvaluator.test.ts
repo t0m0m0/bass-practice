@@ -124,6 +124,7 @@ describe("generateMisses", () => {
     expect(misses[0].targetBeat).toBe(1);
     expect(misses[0].judgment).toBe("miss");
     expect(misses[0].onsetTimeMs).toBeNull();
+    expect(misses[0].deltaMs).toBeNull();
     expect(misses[1].targetBeat).toBe(3);
   });
 
@@ -136,10 +137,10 @@ describe("generateMisses", () => {
 
 describe("computeStats", () => {
   it("computes hit rate and avg absolute delta", () => {
-    const events = [
+    const events: import("../../types/practice").TimingEvent[] = [
       { targetBeat: 0, targetTimeMs: 0, onsetTimeMs: 10, deltaMs: 10, judgment: "hit" as const },
       { targetBeat: 1, targetTimeMs: 500, onsetTimeMs: 460, deltaMs: -40, judgment: "early" as const },
-      { targetBeat: 2, targetTimeMs: 1000, onsetTimeMs: null, deltaMs: 0, judgment: "miss" as const },
+      { targetBeat: 2, targetTimeMs: 1000, onsetTimeMs: null, deltaMs: null, judgment: "miss" as const },
     ];
     const stats = computeStats(events);
     expect(stats.hitRate).toBeCloseTo(2 / 3);
@@ -153,8 +154,8 @@ describe("computeStats", () => {
   });
 
   it("handles all misses", () => {
-    const events = [
-      { targetBeat: 0, targetTimeMs: 0, onsetTimeMs: null, deltaMs: 0, judgment: "miss" as const },
+    const events: import("../../types/practice").TimingEvent[] = [
+      { targetBeat: 0, targetTimeMs: 0, onsetTimeMs: null, deltaMs: null, judgment: "miss" as const },
     ];
     const stats = computeStats(events);
     expect(stats.hitRate).toBe(0);
