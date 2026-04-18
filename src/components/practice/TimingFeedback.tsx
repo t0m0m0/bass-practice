@@ -1,9 +1,9 @@
-import type { TimingEvent, TimingJudgment } from "../../types/practice";
+import type { TabSessionPhase, TimingEvent, TimingJudgment } from "../../types/practice";
 
 interface TimingFeedbackProps {
   lastEvent: TimingEvent | null;
   stats: { hitRate: number; avgAbsDeltaMs: number };
-  phase: string;
+  phase: TabSessionPhase;
   timingEvents: TimingEvent[];
   loop: number;
 }
