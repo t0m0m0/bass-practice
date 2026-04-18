@@ -1,7 +1,9 @@
+import type { TabSessionPhase } from "../../types/practice";
+
 interface MetronomeControlsProps {
   bpm: number;
   isPlaying: boolean;
-  phase: string;
+  phase: TabSessionPhase;
   onBpmChange: (bpm: number) => void;
   onStart: () => void;
   onStop: () => void;
