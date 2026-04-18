@@ -19,15 +19,18 @@ function assertBeatsPerMeasure(value: number): void {
   }
 }
 
+export type MetronomeState =
+  | { status: "idle" }
+  | { status: "ready"; audioContext: AudioContext }
+  | { status: "playing"; audioContext: AudioContext; timerID: ReturnType<typeof setInterval> };
+
 export class MetronomeEngine {
-  private audioContext: AudioContext | null = null;
-  private timerID: ReturnType<typeof setInterval> | null = null;
+  private state: MetronomeState = { status: "idle" };
   private nextNoteTime = 0;
   private currentBeat = 0;
   private _bpm: number;
   private _beatsPerMeasure: number;
   private _beatUnit: number;
-  private _isPlaying = false;
   private beatCallbacks: BeatCallback[] = [];
 
   constructor(options: MetronomeOptions) {
@@ -63,11 +66,11 @@ export class MetronomeEngine {
   }
 
   get isPlaying(): boolean {
-    return this._isPlaying;
+    return this.state.status === "playing";
   }
 
   get context(): AudioContext | null {
-    return this.audioContext;
+    return this.state.status === "idle" ? null : this.state.audioContext;
   }
 
   /** Seconds per beat (quarter note equivalent) */
@@ -92,21 +95,23 @@ export class MetronomeEngine {
    * `start()` when you're ready to begin playback.
    */
   initContext(): void {
-    if (this.audioContext) return;
+    if (this.state.status !== "idle") return;
     const ctx = new AudioContext();
     // resume() returns a promise but the important thing is that the browser
     // *unlocks* the context synchronously when called inside a gesture handler.
     void ctx.resume();
-    this.audioContext = ctx;
+    this.state = { status: "ready", audioContext: ctx };
   }
 
   async start(): Promise<void> {
-    if (this._isPlaying) return;
+    if (this.state.status === "playing") return;
 
-    if (!this.audioContext) {
+    if (this.state.status === "idle") {
       this.initContext();
     }
-    const ctx = this.audioContext!;
+    // After initContext, state is guaranteed to be "ready"
+    const { audioContext: ctx } = this.state as MetronomeState & { status: "ready" };
+
     if (ctx.state === "suspended") {
       // Race against a timeout so we don't hang forever in environments
       // where the browser refuses to unlock the AudioContext.
@@ -117,53 +122,47 @@ export class MetronomeEngine {
         throw new Error("AudioContext could not be resumed. Try clicking the Start button again.");
       }
     }
-    this._isPlaying = true;
+
     this.currentBeat = 0;
     this.nextNoteTime = ctx.currentTime + 0.05; // small initial delay
 
-    this.timerID = setInterval(() => this.scheduler(), LOOKAHEAD_MS);
+    const timerID = setInterval(() => this.scheduler(), LOOKAHEAD_MS);
+    this.state = { status: "playing", audioContext: ctx, timerID };
   }
 
   async stop(): Promise<void> {
-    if (!this._isPlaying) return;
+    if (this.state.status !== "playing") return;
 
-    this._isPlaying = false;
-    if (this.timerID !== null) {
-      clearInterval(this.timerID);
-      this.timerID = null;
-    }
-    const ctx = this.audioContext;
-    this.audioContext = null;
+    const { audioContext: ctx, timerID } = this.state;
+    this.state = { status: "idle" };
     this.currentBeat = 0;
-    if (ctx && ctx.state !== "closed") {
+
+    clearInterval(timerID);
+    if (ctx.state !== "closed") {
       await ctx.close();
     }
   }
 
   /** AudioContext currentTime in ms, or null if not playing */
   getCurrentTimeMs(): number | null {
-    if (!this.audioContext) return null;
-    return this.audioContext.currentTime * 1000;
+    if (this.state.status === "idle") return null;
+    return this.state.audioContext.currentTime * 1000;
   }
 
   private scheduler(): void {
-    if (!this.audioContext || !this._isPlaying) return;
+    if (this.state.status !== "playing") return;
 
-    while (
-      this.nextNoteTime <
-      this.audioContext.currentTime + SCHEDULE_AHEAD_S
-    ) {
-      this.scheduleClick(this.nextNoteTime, this.currentBeat);
+    const { audioContext: ctx } = this.state;
+    while (this.nextNoteTime < ctx.currentTime + SCHEDULE_AHEAD_S) {
+      this.scheduleClick(ctx, this.nextNoteTime, this.currentBeat);
       this.notifyCallbacks(this.currentBeat, this.nextNoteTime);
       this.advanceBeat();
     }
   }
 
-  private scheduleClick(time: number, beat: number): void {
-    if (!this.audioContext) return;
-
-    const osc = this.audioContext.createOscillator();
-    const gain = this.audioContext.createGain();
+  private scheduleClick(ctx: AudioContext, time: number, beat: number): void {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
     const isAccent = beat % this._beatsPerMeasure === 0;
     osc.frequency.value = isAccent ? 1000 : 800;
@@ -174,7 +173,7 @@ export class MetronomeEngine {
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
 
     osc.connect(gain);
-    gain.connect(this.audioContext.destination);
+    gain.connect(ctx.destination);
 
     osc.start(time);
     osc.stop(time + 0.08);
