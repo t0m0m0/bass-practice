@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { TabPreset, TimingEvent, TabSessionPhase } from "../types/practice";
 import type { AudioEngine } from "../lib/audio/AudioEngine";
 import { OnsetDetector } from "../lib/audio/onsetDetector";
@@ -172,19 +172,29 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     };
   }, []);
 
-  return {
-    phase,
-    currentBeat,
-    loop,
-    timingEvents,
-    lastEvent,
-    stats: computeStats(timingEvents),
-    metronome: {
+  const stats = useMemo(() => computeStats(timingEvents), [timingEvents]);
+
+  const metronomeSlice = useMemo(
+    () => ({
       bpm: metronome.bpm,
       setBpm: metronome.setBpm,
       isPlaying: metronome.isPlaying,
-    },
-    startSession,
-    stopSession,
-  };
+    }),
+    [metronome.bpm, metronome.setBpm, metronome.isPlaying],
+  );
+
+  return useMemo(
+    () => ({
+      phase,
+      currentBeat,
+      loop,
+      timingEvents,
+      lastEvent,
+      stats,
+      metronome: metronomeSlice,
+      startSession,
+      stopSession,
+    }),
+    [phase, currentBeat, loop, timingEvents, lastEvent, stats, metronomeSlice, startSession, stopSession],
+  );
 }
