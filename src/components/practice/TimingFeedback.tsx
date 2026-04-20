@@ -1,4 +1,9 @@
-import type { TabSessionPhase, TimingEvent, TimingJudgment } from "../../types/practice";
+import type {
+  TabSessionPhase,
+  TimingEvent,
+  TimingJudgment,
+} from "../../types/practice";
+import { Card } from "../md3";
 
 interface TimingFeedbackProps {
   lastEvent: TimingEvent | null;
@@ -8,18 +13,14 @@ interface TimingFeedbackProps {
   loop: number;
 }
 
-const judgmentColors: Record<TimingJudgment, string> = {
-  hit: "text-green-400",
-  early: "text-yellow-400",
-  late: "text-orange-400",
-  miss: "text-red-400",
-};
-
-const judgmentLabels: Record<TimingJudgment, string> = {
-  hit: "HIT",
-  early: "EARLY",
-  late: "LATE",
-  miss: "MISS",
+const JUDGMENT_CONFIG: Record<
+  TimingJudgment,
+  { label: string; color: string; bg: string }
+> = {
+  hit: { label: "HIT", color: "#4ecdc4", bg: "#4ecdc41a" },
+  early: { label: "EARLY", color: "#f9a825", bg: "#f9a8251a" },
+  late: { label: "LATE", color: "#ff7043", bg: "#ff70431a" },
+  miss: { label: "MISS", color: "#ef5350", bg: "#ef53501a" },
 };
 
 export function TimingFeedback({
@@ -29,97 +30,251 @@ export function TimingFeedback({
   timingEvents,
   loop,
 }: TimingFeedbackProps) {
+  if (phase === "idle") return null;
+
+  const cfg = lastEvent ? JUDGMENT_CONFIG[lastEvent.judgment] : null;
+  const delta =
+    lastEvent && lastEvent.judgment !== "miss" ? lastEvent.deltaMs : 0;
+
   return (
-    <div className="space-y-4">
-      {/* Live feedback */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {phase === "playing" && (
-        <div className="bg-slate-800 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-slate-400">Timing</h3>
-            <span className="text-xs text-slate-500">Loop {loop + 1}</span>
+        <Card style={{ padding: 20 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{
+                font: "500 16px/1 Roboto, sans-serif",
+                color: "var(--md-on-surface)",
+              }}
+            >
+              Timing
+            </div>
+            <span
+              style={{
+                font: "400 12px/1 Roboto, sans-serif",
+                color: "var(--md-on-surface-variant)",
+                background: "var(--md-surface-container)",
+                padding: "4px 10px",
+                borderRadius: 12,
+              }}
+            >
+              Loop {loop + 1}
+            </span>
           </div>
 
-          {lastEvent ? (
-            <div className="text-center">
+          {lastEvent && cfg ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
               <div
-                className={`text-3xl font-bold ${judgmentColors[lastEvent.judgment]}`}
+                style={{
+                  font: "700 36px/1 Roboto, sans-serif",
+                  letterSpacing: 2,
+                  color: cfg.color,
+                  background: cfg.bg,
+                  padding: "10px 32px",
+                  borderRadius: 16,
+                }}
               >
-                {judgmentLabels[lastEvent.judgment]}
+                {cfg.label}
               </div>
+
               {lastEvent.judgment !== "miss" && lastEvent.deltaMs !== 0 && (
-                <div className="text-sm text-slate-400 mt-1">
+                <div
+                  style={{
+                    font: "400 14px/1 Roboto Mono, monospace",
+                    color: "var(--md-on-surface-variant)",
+                  }}
+                >
                   {lastEvent.deltaMs > 0 ? "+" : ""}
                   {lastEvent.deltaMs}ms
                 </div>
               )}
 
-              {/* Timing bar visualization */}
-              <div className="mt-3 relative h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="absolute left-1/2 w-0.5 h-full bg-white/30" />
+              <div style={{ width: "100%" }}>
                 <div
-                  className={`absolute top-0 h-full w-2 rounded-full transition-all ${
-                    lastEvent.judgment === "hit"
-                      ? "bg-green-400"
-                      : lastEvent.judgment === "early"
-                        ? "bg-yellow-400"
-                        : "bg-orange-400"
-                  }`}
                   style={{
-                    left: `${50 + ((lastEvent.judgment !== "miss" ? lastEvent.deltaMs : 0) / 100) * 40}%`,
-                    transform: "translateX(-50%)",
+                    position: "relative",
+                    height: 6,
+                    background: "var(--md-surface-container-highest)",
+                    borderRadius: 3,
+                    overflow: "hidden",
                   }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-slate-600 mt-1">
-                <span>Early</span>
-                <span>Late</span>
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      top: 0,
+                      width: 1,
+                      height: "100%",
+                      background: "var(--md-outline)",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      height: "100%",
+                      width: 8,
+                      borderRadius: 3,
+                      background: cfg.color,
+                      left: `${50 + (delta / 100) * 40}%`,
+                      transform: "translateX(-50%)",
+                      transition: "left 0.1s",
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      font: "400 11px/1 Roboto, sans-serif",
+                      color: "var(--md-on-surface-variant)",
+                    }}
+                  >
+                    Early
+                  </span>
+                  <span
+                    style={{
+                      font: "400 11px/1 Roboto, sans-serif",
+                      color: "var(--md-on-surface-variant)",
+                    }}
+                  >
+                    Late
+                  </span>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="text-center text-slate-500">Play a note...</div>
+            <div
+              style={{
+                textAlign: "center",
+                font: "400 15px/1 Roboto, sans-serif",
+                color: "var(--md-on-surface-variant)",
+                padding: "16px 0",
+              }}
+            >
+              Play a note...
+            </div>
           )}
-        </div>
+        </Card>
       )}
 
-      {/* Summary (shown during play and at end) */}
-      {(phase === "playing" || phase === "finished") && timingEvents.length > 0 && (
-        <div className="bg-slate-800 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-slate-400 mb-3">
-            {phase === "finished" ? "Results" : "Stats"}
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="text-2xl font-bold text-white">
-                {Math.round(stats.hitRate * 100)}%
-              </div>
-              <div className="text-xs text-slate-400">Hit Rate</div>
+      {(phase === "playing" || phase === "finished") &&
+        timingEvents.length > 0 && (
+          <Card style={{ padding: 20 }}>
+            <div
+              style={{
+                font: "500 16px/1 Roboto, sans-serif",
+                color: "var(--md-on-surface)",
+                marginBottom: 16,
+              }}
+            >
+              {phase === "finished" ? "Results" : "Stats"}
             </div>
-            <div>
-              <div className="text-2xl font-bold text-white">
-                {stats.avgAbsDeltaMs}ms
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 16,
+                marginBottom: 16,
+              }}
+            >
+              <div
+                style={{
+                  background: "var(--md-surface-container)",
+                  borderRadius: 12,
+                  padding: 16,
+                }}
+              >
+                <div
+                  style={{
+                    font: "700 32px/1 Roboto, sans-serif",
+                    color: "var(--md-primary)",
+                  }}
+                >
+                  {Math.round(stats.hitRate * 100)}%
+                </div>
+                <div
+                  style={{
+                    font: "400 12px/1 Roboto, sans-serif",
+                    color: "var(--md-on-surface-variant)",
+                    marginTop: 4,
+                  }}
+                >
+                  Hit Rate
+                </div>
               </div>
-              <div className="text-xs text-slate-400">Avg Offset</div>
+              <div
+                style={{
+                  background: "var(--md-surface-container)",
+                  borderRadius: 12,
+                  padding: 16,
+                }}
+              >
+                <div
+                  style={{
+                    font: "700 32px/1 Roboto, sans-serif",
+                    color: "var(--md-on-surface)",
+                  }}
+                >
+                  {stats.avgAbsDeltaMs}ms
+                </div>
+                <div
+                  style={{
+                    font: "400 12px/1 Roboto, sans-serif",
+                    color: "var(--md-on-surface-variant)",
+                    marginTop: 4,
+                  }}
+                >
+                  Avg Offset
+                </div>
+              </div>
             </div>
-          </div>
-
-          {/* Event breakdown */}
-          <div className="mt-3 flex gap-3 text-xs">
-            {(["hit", "early", "late", "miss"] as TimingJudgment[]).map(
-              (j) => {
-                const count = timingEvents.filter(
-                  (e) => e.judgment === j,
-                ).length;
-                if (count === 0) return null;
-                return (
-                  <span key={j} className={judgmentColors[j]}>
-                    {judgmentLabels[j]}: {count}
-                  </span>
-                );
-              },
-            )}
-          </div>
-        </div>
-      )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {(["hit", "early", "late", "miss"] as TimingJudgment[]).map(
+                (j) => {
+                  const count = timingEvents.filter(
+                    (e) => e.judgment === j,
+                  ).length;
+                  if (!count) return null;
+                  return (
+                    <span
+                      key={j}
+                      style={{
+                        padding: "4px 12px",
+                        borderRadius: 8,
+                        background: JUDGMENT_CONFIG[j].bg,
+                        color: JUDGMENT_CONFIG[j].color,
+                        font: "500 12px/1.5 Roboto, sans-serif",
+                      }}
+                    >
+                      {JUDGMENT_CONFIG[j].label}: {count}
+                    </span>
+                  );
+                },
+              )}
+            </div>
+          </Card>
+        )}
     </div>
   );
 }
