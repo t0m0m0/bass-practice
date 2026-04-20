@@ -6,6 +6,7 @@ import { useTabPractice } from "../hooks/useTabPractice";
 import { AsciiTabDisplay } from "../components/practice/AsciiTabDisplay";
 import { MetronomeControls } from "../components/practice/MetronomeControls";
 import { TimingFeedback } from "../components/practice/TimingFeedback";
+import { Tag } from "../components/md3";
 import type { TabPreset } from "../types/practice";
 
 export function TabPracticePage() {
@@ -14,9 +15,25 @@ export function TabPracticePage() {
 
   if (!preset) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl text-slate-400 mb-4">Preset not found</h2>
-        <Link to="/" className="text-cyan-400 hover:text-cyan-300">
+      <div
+        style={{
+          textAlign: "center",
+          padding: "48px 16px",
+          color: "var(--md-on-surface-variant)",
+        }}
+      >
+        <h2
+          style={{
+            font: "400 20px/1.2 Roboto, sans-serif",
+            marginBottom: 16,
+          }}
+        >
+          Preset not found
+        </h2>
+        <Link
+          to="/"
+          style={{ color: "var(--md-primary)", textDecoration: "none" }}
+        >
           ← Back to Home
         </Link>
       </div>
@@ -38,7 +55,7 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
   const handleStart = async () => {
     setStartError(null);
     if (!audio.isListening) {
-      audio.start().catch(() => {}); // mic failure is non-fatal; onset detection just won't work
+      audio.start().catch(() => {});
     }
     try {
       await practice.startSession();
@@ -51,35 +68,47 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
   const micWarning = !startError && audio.error ? audio.error : null;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <Link
-            to="/"
-            className="text-sm text-slate-400 hover:text-slate-300 mb-1 inline-block"
-          >
-            ← Back
-          </Link>
-          <h2 className="text-xl font-semibold text-white">{preset.name}</h2>
-          <p className="text-sm text-slate-400">{preset.description}</p>
-        </div>
-        <div className="text-right">
-          <div className="text-sm text-slate-500">
-            {preset.timeSignature.beatsPerMeasure}/{preset.timeSignature.beatUnit} ·{" "}
-            {preset.measures} measures
-          </div>
+    <div
+      style={{
+        padding: "24px 16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 8,
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            font: "400 14px/1.5 Roboto, sans-serif",
+            color: "var(--md-on-surface-variant)",
+            flex: 1,
+          }}
+        >
+          {preset.description}
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Tag
+            label={`${preset.timeSignature.beatsPerMeasure}/${preset.timeSignature.beatUnit}`}
+          />
+          <Tag label={`${preset.measures} 小節`} />
         </div>
       </div>
 
-      {/* Tab Display */}
       <AsciiTabDisplay
         preset={preset}
         currentBeat={practice.currentBeat}
         isPlaying={practice.phase === "playing"}
       />
 
-      {/* Controls */}
       <MetronomeControls
         bpm={practice.metronome.bpm}
         isPlaying={practice.metronome.isPlaying}
@@ -92,19 +121,34 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
       {displayedError && (
         <div
           role="alert"
-          className="bg-red-950/40 border border-red-800 text-red-200 text-sm rounded px-4 py-3"
+          style={{
+            background: "#ef53501a",
+            border: "1px solid #ef535066",
+            color: "#ef5350",
+            borderRadius: 12,
+            padding: "12px 16px",
+            font: "400 13px/1.5 Roboto, sans-serif",
+          }}
         >
           {displayedError}
         </div>
       )}
 
       {micWarning && (
-        <div className="bg-yellow-950/40 border border-yellow-800 text-yellow-200 text-sm rounded px-4 py-3">
+        <div
+          style={{
+            background: "#f9a8251a",
+            border: "1px solid #f9a82566",
+            color: "#f9a825",
+            borderRadius: 12,
+            padding: "12px 16px",
+            font: "400 13px/1.5 Roboto, sans-serif",
+          }}
+        >
           🎤 マイクが利用できません（メトロノームは動作します）: {micWarning}
         </div>
       )}
 
-      {/* Feedback */}
       <TimingFeedback
         lastEvent={practice.lastEvent}
         stats={practice.stats}

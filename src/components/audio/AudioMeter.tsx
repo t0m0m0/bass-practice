@@ -7,23 +7,26 @@ export function AudioMeter({ level }: AudioMeterProps) {
   const normalizedLevel = Math.max(0, Math.min(1, (db + 60) / 60));
   const percentage = normalizedLevel * 100;
 
-  const getColor = () => {
-    if (normalizedLevel > 0.8) return "bg-red-500";
-    if (normalizedLevel > 0.5) return "bg-yellow-500";
-    return "bg-emerald-500";
-  };
+  const colorClass =
+    normalizedLevel > 0.8
+      ? "bg-red-500"
+      : normalizedLevel > 0.5
+        ? "bg-yellow-500"
+        : "bg-emerald-500";
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-sm text-slate-400">Input Level</span>
-        <span className="text-xs text-slate-500 font-mono">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs text-[var(--md-on-surface-variant)]">
+          Input Level
+        </span>
+        <span className="text-[11px] font-mono text-[var(--md-on-surface-variant)]">
           {(normalizedLevel * 100).toFixed(0)}%
         </span>
       </div>
-      <div className="w-full h-3 bg-slate-700 rounded-full overflow-hidden">
+      <div className="w-full h-1.5 rounded-full overflow-hidden bg-[var(--md-surface-container-highest)]">
         <div
-          className={`h-full rounded-full transition-all duration-75 ${getColor()}`}
+          className={`h-full rounded-full transition-all duration-75 ${colorClass}`}
           style={{ width: `${percentage}%` }}
         />
       </div>

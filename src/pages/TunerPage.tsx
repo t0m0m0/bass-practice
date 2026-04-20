@@ -9,7 +9,16 @@ export function TunerPage() {
   const { pitch } = usePitchDetection(audio.engine, audio.isListening);
 
   return (
-    <div className="space-y-6">
+    <div
+      style={{
+        padding: "24px 16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+      }}
+    >
+      <PitchDisplay pitch={audio.isListening ? pitch : null} />
+
       <AudioSetup
         isListening={audio.isListening}
         isPermissionGranted={audio.isPermissionGranted}
@@ -26,8 +35,6 @@ export function TunerPage() {
         clarityThreshold={audio.clarityThreshold}
         onThresholdChange={audio.setClarityThreshold}
       />
-
-      {audio.isListening && <PitchDisplay pitch={pitch} />}
     </div>
   );
 }
