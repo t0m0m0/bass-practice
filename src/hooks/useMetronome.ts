@@ -7,20 +7,25 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
   const engineRef = useRef<MetronomeEngine | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpmState] = useState(initialBpm);
+  const bpmRef = useRef(bpm);
   const externalCallbackRef = useRef<BeatCallback | null>(null);
+
+  useEffect(() => {
+    bpmRef.current = bpm;
+  }, [bpm]);
 
   /** Create a MetronomeEngine and wire up the beat callback. */
   const ensureEngine = useCallback(() => {
     if (engineRef.current) return engineRef.current;
 
-    const engine = new MetronomeEngine({ bpm, beatsPerMeasure, beatUnit });
+    const engine = new MetronomeEngine({ bpm: bpmRef.current, beatsPerMeasure, beatUnit });
     engine.onBeat((beat, time) => {
       externalCallbackRef.current?.(beat, time);
     });
     engineRef.current = engine;
     setBpmState(engine.bpm);
     return engine;
-  }, [bpm, beatsPerMeasure, beatUnit]);
+  }, [beatsPerMeasure, beatUnit]);
 
   /**
    * Prepare the AudioContext synchronously inside a user-gesture handler.
