@@ -300,4 +300,24 @@ describe("useAutoBpm", () => {
 
     expect(setBpm).not.toHaveBeenCalled();
   });
+
+  it("does not increase BPM when the loop is all misses (hitRate=0)", () => {
+    // Regression guard: loopEvents is non-empty (misses are still events),
+    // so the early 'empty' return doesn't catch this. The threshold check
+    // must correctly reject a 0% hit rate.
+    const { result } = renderHook(() => useAutoBpm(100, setBpm));
+
+    act(() => {
+      result.current.setEnabled(true);
+    });
+
+    const events: TimingEvent[] = [makeMiss(0), makeMiss(1), makeMiss(2)];
+    act(() => {
+      result.current.evaluateLoop(events, 100);
+    });
+
+    expect(setBpm).not.toHaveBeenCalled();
+    expect(result.current.levelUps).toBe(0);
+    expect(result.current.notification).toBeNull();
+  });
 });
