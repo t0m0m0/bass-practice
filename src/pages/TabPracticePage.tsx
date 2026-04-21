@@ -5,6 +5,7 @@ import { useAudioInput } from "../hooks/useAudioInput";
 import { useTabPractice } from "../hooks/useTabPractice";
 import { AsciiTabDisplay } from "../components/practice/AsciiTabDisplay";
 import { MetronomeControls } from "../components/practice/MetronomeControls";
+import { AutoBpmControls } from "../components/practice/AutoBpmControls";
 import { TimingFeedback } from "../components/practice/TimingFeedback";
 import { Tag } from "../components/md3";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -68,6 +69,21 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
 
   const displayedError = startError;
   const micWarning = !startError && audio.error ? audio.error : null;
+
+  const autoBpmBlock = (
+    <AutoBpmControls
+      config={practice.autoBpm.config}
+      currentBpm={practice.metronome.bpm}
+      startBpm={practice.autoBpm.startBpm}
+      levelUps={practice.autoBpm.levelUps}
+      notification={practice.autoBpm.notification}
+      phase={practice.phase}
+      onEnabledChange={practice.autoBpm.setEnabled}
+      onThresholdChange={practice.autoBpm.setHitRateThreshold}
+      onIncrementChange={practice.autoBpm.setBpmIncrement}
+      onMaxBpmChange={practice.autoBpm.setMaxBpm}
+    />
+  );
 
   const errorBlock = (
     <>
@@ -165,6 +181,7 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
               onStart={handleStart}
               onStop={practice.stopSession}
             />
+            {autoBpmBlock}
             {errorBlock}
           </div>
           <TimingFeedback
@@ -185,6 +202,7 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
             onStart={handleStart}
             onStop={practice.stopSession}
           />
+          {autoBpmBlock}
           {errorBlock}
           <TimingFeedback
             lastEvent={practice.lastEvent}

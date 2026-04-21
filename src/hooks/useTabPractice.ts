@@ -10,6 +10,7 @@ import {
 } from "../lib/practice/timingEvaluator";
 import type { TimingTarget } from "../lib/practice/timingEvaluator";
 import { useMetronome } from "./useMetronome";
+import { useAutoBpm } from "./useAutoBpm";
 
 export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | null) {
   const metronome = useMetronome(
@@ -17,6 +18,12 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     preset.timeSignature.beatsPerMeasure,
     preset.timeSignature.beatUnit,
   );
+
+  const autoBpm = useAutoBpm(metronome.bpm, metronome.setBpm);
+  const autoBpmRef = useRef(autoBpm);
+  useEffect(() => {
+    autoBpmRef.current = autoBpm;
+  }, [autoBpm]);
 
   // Ref keeps the latest metronome value so callbacks/effects can access it
   // without depending on the metronome object identity (which triggers
@@ -37,6 +44,7 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
   const hitBeatsRef = useRef(new Set<number>());
   const animFrameRef = useRef(0);
   const allEventsRef = useRef<TimingEvent[]>([]);
+  const loopEventsRef = useRef<TimingEvent[]>([]);
   const phaseRef = useRef<TabSessionPhase>("idle");
 
   useEffect(() => {
@@ -74,6 +82,7 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
         if (event) {
           hitBeatsRef.current.add(event.targetBeat);
           allEventsRef.current = [...allEventsRef.current, event];
+          loopEventsRef.current = [...loopEventsRef.current, event];
           setTimingEvents((prev) => [...prev, event]);
           setLastEvent(event);
         }
@@ -106,8 +115,14 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
           const misses = generateMisses(targetsRef.current, hitBeatsRef.current);
           if (misses.length > 0) {
             allEventsRef.current = [...allEventsRef.current, ...misses];
+            loopEventsRef.current = [...loopEventsRef.current, ...misses];
             setTimingEvents((prev) => [...prev, ...misses]);
           }
+
+          // Evaluate auto-BPM at loop boundary
+          autoBpmRef.current.evaluateLoop(loopEventsRef.current);
+          loopEventsRef.current = [];
+
           setLoop((prev) => prev + 1);
         }
         hitBeatsRef.current = new Set();
@@ -132,9 +147,11 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     setLoop(0);
     setLastEvent(null);
     allEventsRef.current = [];
+    loopEventsRef.current = [];
     hitBeatsRef.current = new Set();
     targetsRef.current = [];
     onsetDetectorRef.current.reset();
+    autoBpmRef.current.resetSession(metronomeRef.current.bpm);
 
     // Prepare AudioContext synchronously inside the click handler's
     // call-stack so the browser unlocks audio output before the async gap.
@@ -192,9 +209,10 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
       lastEvent,
       stats,
       metronome: metronomeSlice,
+      autoBpm,
       startSession,
       stopSession,
     }),
-    [phase, currentBeat, loop, timingEvents, lastEvent, stats, metronomeSlice, startSession, stopSession],
+    [phase, currentBeat, loop, timingEvents, lastEvent, stats, metronomeSlice, autoBpm, startSession, stopSession],
   );
 }
