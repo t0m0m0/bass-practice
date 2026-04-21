@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { tabPresets } from "../data/tabPresets";
+import { useCustomTabs } from "../hooks/useCustomTabs";
 import { useAudioInput } from "../hooks/useAudioInput";
 import { useTabPractice } from "../hooks/useTabPractice";
 import { AsciiTabDisplay } from "../components/practice/AsciiTabDisplay";
@@ -13,7 +14,10 @@ import type { TabPreset } from "../types/practice";
 
 export function TabPracticePage() {
   const { presetId } = useParams<{ presetId: string }>();
-  const preset = tabPresets.find((p) => p.id === presetId);
+  const { tabs: customTabs } = useCustomTabs();
+  const preset =
+    tabPresets.find((p) => p.id === presetId) ??
+    customTabs.find((p) => p.id === presetId);
 
   if (!preset) {
     return (

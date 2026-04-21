@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { TabPreset } from "../../types/practice";
 import { Tag } from "../md3";
 
@@ -21,6 +21,7 @@ const DIFFICULTY_COLOR: Record<string, string> = {
 
 export function PresetCard({ preset }: PresetCardProps) {
   const [hovered, setHovered] = useState(false);
+  const navigate = useNavigate();
   const diff = DIFFICULTY_LABEL[preset.id] ?? "初級";
   const diffColor = DIFFICULTY_COLOR[diff] ?? "#4ecdc4";
 
@@ -106,10 +107,28 @@ export function PresetCard({ preset }: PresetCardProps) {
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
+          gap: 8,
           marginTop: 4,
         }}
       >
+        <span
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate(`/editor?clone=${preset.id}`);
+          }}
+          role="button"
+          tabIndex={0}
+          style={{
+            font: "500 12px/1 Roboto, sans-serif",
+            color: "var(--md-on-surface-variant)",
+            cursor: "pointer",
+            textDecoration: "underline",
+          }}
+        >
+          コピーして編集
+        </span>
         <span
           style={{
             font: "500 13px/1 Roboto, sans-serif",

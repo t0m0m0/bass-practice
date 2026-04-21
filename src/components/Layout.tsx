@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { tabPresets } from "../data/tabPresets";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useCustomTabs } from "../hooks/useCustomTabs";
 
 export function Layout() {
   const location = useLocation();
@@ -8,18 +9,26 @@ export function Layout() {
   const params = useParams();
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
+  const { tabs: customTabs } = useCustomTabs();
   const isPractice = location.pathname.startsWith("/practice/tab/");
+  const isEditor = location.pathname.startsWith("/editor");
   const practicePreset = isPractice
-    ? tabPresets.find((p) => p.id === params.presetId)
+    ? (tabPresets.find((p) => p.id === params.presetId) ??
+      customTabs.find((p) => p.id === params.presetId))
     : undefined;
 
   const title = isPractice
     ? (practicePreset?.name ?? "練習")
-    : location.pathname === "/tuner"
-      ? "チューナー"
-      : "Bass Practice";
+    : isEditor
+      ? (params.id
+          ? (customTabs.find((t) => t.id === params.id)?.name ?? "タブ譜を編集")
+          : "タブ譜を作る")
+      : location.pathname === "/tuner"
+        ? "チューナー"
+        : "Bass Practice";
 
   const currentTab = location.pathname === "/tuner" ? "tuner" : "home";
+  const hideNav = isPractice || isEditor;
 
   return (
     <div
@@ -31,7 +40,7 @@ export function Layout() {
         background: "var(--md-background)",
       }}
     >
-      {isDesktop && !isPractice && (
+      {isDesktop && !hideNav && (
         <SideNav
           current={currentTab}
           onChange={(id) => navigate(id === "home" ? "/" : "/tuner")}
@@ -51,7 +60,7 @@ export function Layout() {
       >
         <TopAppBar
           title={title}
-          onBack={isPractice ? () => navigate("/") : undefined}
+          onBack={hideNav ? () => navigate("/") : undefined}
         />
 
         <main
@@ -62,7 +71,7 @@ export function Layout() {
           <Outlet />
         </main>
 
-        {!isPractice && !isDesktop && (
+        {!hideNav && !isDesktop && (
           <BottomNav
             current={currentTab}
             onChange={(id) => navigate(id === "home" ? "/" : "/tuner")}

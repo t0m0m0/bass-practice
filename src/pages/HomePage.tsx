@@ -1,10 +1,14 @@
+import { Link } from "react-router-dom";
 import { PresetCard } from "../components/practice/PresetCard";
+import { CustomTabCard } from "../components/practice/CustomTabCard";
 import { AssistChip, SectionLabel } from "../components/md3";
 import { tabPresets } from "../data/tabPresets";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useCustomTabs } from "../hooks/useCustomTabs";
 
 export function HomePage() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const { tabs: customTabs, remove } = useCustomTabs();
 
   return (
     <div
@@ -55,7 +59,7 @@ export function HomePage() {
 
       {/* Preset list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <SectionLabel>タブ譜を選ぶ</SectionLabel>
+        <SectionLabel>プリセット</SectionLabel>
         <div
           style={{
             display: "grid",
@@ -67,6 +71,72 @@ export function HomePage() {
             <PresetCard key={preset.id} preset={preset} />
           ))}
         </div>
+      </div>
+
+      {/* Custom tabs */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
+          <SectionLabel>マイタブ譜</SectionLabel>
+          <Link
+            to="/editor"
+            style={{
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "var(--md-primary)",
+              color: "var(--md-on-primary)",
+              padding: "8px 16px",
+              borderRadius: 20,
+              font: "500 13px/1 Roboto, sans-serif",
+              marginBottom: 8,
+            }}
+          >
+            + タブ譜を作る
+          </Link>
+        </div>
+        {customTabs.length === 0 ? (
+          <div
+            style={{
+              padding: "20px 16px",
+              borderRadius: 16,
+              background: "var(--md-surface-container-low)",
+              border: "1px dashed var(--md-outline-variant)",
+              color: "var(--md-on-surface-variant)",
+              font: "400 13px/1.6 Roboto, sans-serif",
+              textAlign: "center",
+            }}
+          >
+            まだマイタブ譜がありません。「タブ譜を作る」から始めるか、プリセットをコピーして編集してみましょう。
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr",
+              gap: 12,
+            }}
+          >
+            {customTabs.map((preset) => (
+              <CustomTabCard
+                key={preset.id}
+                preset={preset}
+                onDelete={() => {
+                  if (confirm(`「${preset.name}」を削除しますか？`)) {
+                    remove(preset.id);
+                  }
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
