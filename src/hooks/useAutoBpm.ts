@@ -27,9 +27,56 @@ const DEFAULT_CONFIG: AutoBpmConfig = {
 };
 
 const NOTIFICATION_DURATION_MS = 2500;
+const STORAGE_KEY = "bass-practice.autoBpmConfig";
+
+/** Persisted fields. `enabled` is intentionally NOT persisted: every
+ * session starts with the toggle OFF so the user opts in explicitly. */
+type PersistedConfig = Pick<
+  AutoBpmConfig,
+  "hitRateThreshold" | "bpmIncrement" | "maxBpm"
+>;
+
+function loadPersistedConfig(): AutoBpmConfig {
+  if (typeof window === "undefined") return DEFAULT_CONFIG;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_CONFIG;
+    const parsed = JSON.parse(raw) as Partial<PersistedConfig>;
+    return {
+      ...DEFAULT_CONFIG,
+      ...(typeof parsed.hitRateThreshold === "number" &&
+      parsed.hitRateThreshold >= 0 &&
+      parsed.hitRateThreshold <= 1
+        ? { hitRateThreshold: parsed.hitRateThreshold }
+        : {}),
+      ...(typeof parsed.bpmIncrement === "number" && parsed.bpmIncrement > 0
+        ? { bpmIncrement: parsed.bpmIncrement }
+        : {}),
+      ...(typeof parsed.maxBpm === "number" && parsed.maxBpm > 0
+        ? { maxBpm: parsed.maxBpm }
+        : {}),
+    };
+  } catch {
+    return DEFAULT_CONFIG;
+  }
+}
+
+function persistConfig(config: AutoBpmConfig) {
+  if (typeof window === "undefined") return;
+  try {
+    const payload: PersistedConfig = {
+      hitRateThreshold: config.hitRateThreshold,
+      bpmIncrement: config.bpmIncrement,
+      maxBpm: config.maxBpm,
+    };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* quota/private-mode: silently ignore */
+  }
+}
 
 export function useAutoBpm(initialBpm: number, setBpm: (bpm: number) => void) {
-  const [config, setConfig] = useState<AutoBpmConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<AutoBpmConfig>(loadPersistedConfig);
   const [levelUps, setLevelUps] = useState(0);
   const [notification, setNotification] = useState<string | null>(null);
   const [startBpm, setStartBpm] = useState(initialBpm);
@@ -41,6 +88,7 @@ export function useAutoBpm(initialBpm: number, setBpm: (bpm: number) => void) {
   const configRef = useRef(config);
   useEffect(() => {
     configRef.current = config;
+    persistConfig(config);
   }, [config]);
   const setBpmRef = useRef(setBpm);
   useEffect(() => {

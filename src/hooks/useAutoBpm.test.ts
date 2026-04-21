@@ -29,10 +29,12 @@ describe("useAutoBpm", () => {
   beforeEach(() => {
     setBpm = vi.fn();
     vi.useFakeTimers();
+    window.localStorage.removeItem("bass-practice.autoBpmConfig");
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    window.localStorage.removeItem("bass-practice.autoBpmConfig");
   });
 
   it("starts disabled by default", () => {
@@ -219,6 +221,70 @@ describe("useAutoBpm", () => {
     expect(() => {
       vi.advanceTimersByTime(5000);
     }).not.toThrow();
+  });
+
+  it("persists config changes to localStorage (excluding enabled)", () => {
+    const { result } = renderHook(() => useAutoBpm(100, setBpm));
+
+    act(() => {
+      result.current.setEnabled(true);
+      result.current.setHitRateThreshold(0.75);
+      result.current.setBpmIncrement(7);
+      result.current.setMaxBpm(250);
+    });
+
+    const stored = JSON.parse(
+      window.localStorage.getItem("bass-practice.autoBpmConfig")!,
+    );
+    expect(stored).toEqual({
+      hitRateThreshold: 0.75,
+      bpmIncrement: 7,
+      maxBpm: 250,
+    });
+    expect(stored.enabled).toBeUndefined();
+  });
+
+  it("restores persisted config on next mount with enabled=false", () => {
+    window.localStorage.setItem(
+      "bass-practice.autoBpmConfig",
+      JSON.stringify({
+        hitRateThreshold: 0.6,
+        bpmIncrement: 8,
+        maxBpm: 180,
+      }),
+    );
+
+    const { result } = renderHook(() => useAutoBpm(100, setBpm));
+    expect(result.current.config).toEqual({
+      enabled: false,
+      hitRateThreshold: 0.6,
+      bpmIncrement: 8,
+      maxBpm: 180,
+    });
+  });
+
+  it("falls back to defaults when localStorage has invalid JSON", () => {
+    window.localStorage.setItem("bass-practice.autoBpmConfig", "not json {{");
+    const { result } = renderHook(() => useAutoBpm(100, setBpm));
+    expect(result.current.config.hitRateThreshold).toBe(0.9);
+    expect(result.current.config.bpmIncrement).toBe(5);
+    expect(result.current.config.maxBpm).toBe(200);
+  });
+
+  it("ignores out-of-range persisted values", () => {
+    window.localStorage.setItem(
+      "bass-practice.autoBpmConfig",
+      JSON.stringify({
+        hitRateThreshold: 2, // invalid > 1
+        bpmIncrement: -1, // invalid
+        maxBpm: 0, // invalid
+      }),
+    );
+    const { result } = renderHook(() => useAutoBpm(100, setBpm));
+    // Each invalid field falls back to its default individually.
+    expect(result.current.config.hitRateThreshold).toBe(0.9);
+    expect(result.current.config.bpmIncrement).toBe(5);
+    expect(result.current.config.maxBpm).toBe(200);
   });
 
   it("ignores empty loop events", () => {
