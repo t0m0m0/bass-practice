@@ -29,12 +29,16 @@ export function AutoBpmControls({
   onMaxBpmChange,
 }: AutoBpmControlsProps) {
   const active = phase === "playing" || phase === "countdown";
+  // Allow toggling OFF mid-session (safe: just stops future BPM UPs).
+  // Only lock the toggle when it would turn ON during a live session,
+  // so the user can't enable auto-ramp halfway through a loop.
+  const toggleLocked = active && !config.enabled;
 
   return (
     <Card style={{ padding: 20 }}>
       <Header
         enabled={config.enabled}
-        locked={active}
+        locked={toggleLocked}
         marginBottom={config.enabled ? 16 : 0}
         onToggle={() => onEnabledChange(!config.enabled)}
       />
