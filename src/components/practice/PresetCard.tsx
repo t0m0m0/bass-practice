@@ -45,6 +45,7 @@ export function PresetCard({ preset }: PresetCardProps) {
         flexDirection: "column",
         gap: 8,
         color: "var(--md-on-surface)",
+        height: "100%",
       }}
     >
       <div

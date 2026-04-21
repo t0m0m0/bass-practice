@@ -1,10 +1,12 @@
 import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { tabPresets } from "../data/tabPresets";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const isPractice = location.pathname.startsWith("/practice/tab/");
   const practicePreset = isPractice
@@ -23,33 +25,50 @@ export function Layout() {
     <div
       style={{
         display: "flex",
-        flexDirection: "column",
+        flexDirection: isDesktop ? "row" : "column",
         minHeight: "100dvh",
-        maxWidth: 480,
-        margin: "0 auto",
         position: "relative",
         background: "var(--md-background)",
       }}
     >
-      <TopAppBar
-        title={title}
-        onBack={isPractice ? () => navigate("/") : undefined}
-      />
-
-      <main
-        key={location.pathname}
-        className="page-enter"
-        style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}
-      >
-        <Outlet />
-      </main>
-
-      {!isPractice && (
-        <BottomNav
+      {isDesktop && !isPractice && (
+        <SideNav
           current={currentTab}
           onChange={(id) => navigate(id === "home" ? "/" : "/tuner")}
         />
       )}
+
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100dvh",
+          maxWidth: isDesktop ? 960 : undefined,
+          margin: isDesktop ? "0 auto" : undefined,
+          width: isDesktop ? "100%" : undefined,
+        }}
+      >
+        <TopAppBar
+          title={title}
+          onBack={isPractice ? () => navigate("/") : undefined}
+        />
+
+        <main
+          key={location.pathname}
+          className="page-enter"
+          style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}
+        >
+          <Outlet />
+        </main>
+
+        {!isPractice && !isDesktop && (
+          <BottomNav
+            current={currentTab}
+            onChange={(id) => navigate(id === "home" ? "/" : "/tuner")}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -112,16 +131,75 @@ function TopAppBar({ title, onBack }: TopAppBarProps) {
   );
 }
 
-interface BottomNavProps {
+interface NavProps {
   current: "home" | "tuner";
   onChange: (id: "home" | "tuner") => void;
 }
 
-function BottomNav({ current, onChange }: BottomNavProps) {
-  const items: { id: "home" | "tuner"; label: string; icon: string }[] = [
-    { id: "home", label: "ホーム", icon: "⊟" },
-    { id: "tuner", label: "チューナー", icon: "♩" },
-  ];
+const NAV_ITEMS: { id: "home" | "tuner"; label: string; icon: string }[] = [
+  { id: "home", label: "ホーム", icon: "⊟" },
+  { id: "tuner", label: "チューナー", icon: "♩" },
+];
+
+function SideNav({ current, onChange }: NavProps) {
+  return (
+    <nav
+      style={{
+        width: 240,
+        flexShrink: 0,
+        background: "var(--md-surface-container)",
+        borderRight: "1px solid var(--md-outline-variant)",
+        display: "flex",
+        flexDirection: "column",
+        padding: "16px 12px",
+        gap: 4,
+      }}
+    >
+      <div
+        style={{
+          font: "500 18px/1 Roboto, sans-serif",
+          color: "var(--md-on-surface)",
+          padding: "12px 16px 20px",
+          letterSpacing: -0.2,
+        }}
+      >
+        🎸 Bass Practice
+      </div>
+      {NAV_ITEMS.map((item) => {
+        const active = current === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => onChange(item.id)}
+            style={{
+              background: active
+                ? "var(--md-secondary-container)"
+                : "transparent",
+              border: "none",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 16px",
+              borderRadius: 28,
+              color: active
+                ? "var(--md-on-secondary-container)"
+                : "var(--md-on-surface-variant)",
+              font: `${active ? "500" : "400"} 14px/1 Roboto, sans-serif`,
+              letterSpacing: 0.2,
+              transition: "background 0.15s, color 0.15s",
+            }}
+          >
+            <span style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</span>
+            {item.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function BottomNav({ current, onChange }: NavProps) {
   return (
     <nav
       style={{
@@ -133,7 +211,7 @@ function BottomNav({ current, onChange }: BottomNavProps) {
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {items.map((item) => {
+      {NAV_ITEMS.map((item) => {
         const active = current === item.id;
         return (
           <button
