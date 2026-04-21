@@ -95,9 +95,11 @@ export function AutoBpmControls({
           {notification && (
             <div
               style={{
-                background: "#4ecdc41a",
-                border: "1px solid #4ecdc466",
-                color: "#4ecdc4",
+                background:
+                  "color-mix(in srgb, var(--md-primary) 10%, transparent)",
+                border:
+                  "1px solid color-mix(in srgb, var(--md-primary) 40%, transparent)",
+                color: "var(--md-primary)",
                 borderRadius: 12,
                 padding: "10px 16px",
                 font: "600 14px/1.5 Roboto, sans-serif",
@@ -204,8 +206,9 @@ export function AutoBpmControls({
                     marginLeft: 8,
                     padding: "4px 10px",
                     borderRadius: 12,
-                    background: "#4ecdc41a",
-                    color: "#4ecdc4",
+                    background:
+                      "color-mix(in srgb, var(--md-primary) 10%, transparent)",
+                    color: "var(--md-primary)",
                     font: "600 12px/1.5 Roboto, sans-serif",
                   }}
                 >
