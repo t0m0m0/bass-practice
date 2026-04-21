@@ -40,7 +40,7 @@ export function AsciiTabDisplay({
     if (!isPlaying || currentBeat < 0 || !scrollRef.current) return;
     const x = LABEL_W + currentBeat * BEAT_W - 80;
     scrollRef.current.scrollTo({ left: Math.max(0, x), behavior: "smooth" });
-  }, [currentBeat, isPlaying]);
+  }, [currentBeat, isPlaying, BEAT_W]);
 
   const svgW = LABEL_W + totalBeats * BEAT_W + PADDING;
   const svgH = 4 * ROW_H + 32;
