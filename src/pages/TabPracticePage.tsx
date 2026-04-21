@@ -7,6 +7,7 @@ import { AsciiTabDisplay } from "../components/practice/AsciiTabDisplay";
 import { MetronomeControls } from "../components/practice/MetronomeControls";
 import { TimingFeedback } from "../components/practice/TimingFeedback";
 import { Tag } from "../components/md3";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import type { TabPreset } from "../types/practice";
 
 export function TabPracticePage() {
@@ -51,6 +52,7 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
   const audio = useAudioInput();
   const practice = useTabPractice(preset, audio.engine);
   const [startError, setStartError] = useState<string | null>(null);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const handleStart = async () => {
     setStartError(null);
@@ -67,10 +69,45 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
   const displayedError = startError;
   const micWarning = !startError && audio.error ? audio.error : null;
 
+  const errorBlock = (
+    <>
+      {displayedError && (
+        <div
+          role="alert"
+          style={{
+            background: "#ef53501a",
+            border: "1px solid #ef535066",
+            color: "#ef5350",
+            borderRadius: 12,
+            padding: "12px 16px",
+            font: "400 13px/1.5 Roboto, sans-serif",
+          }}
+        >
+          {displayedError}
+        </div>
+      )}
+
+      {micWarning && (
+        <div
+          style={{
+            background: "#f9a8251a",
+            border: "1px solid #f9a82566",
+            color: "#f9a825",
+            borderRadius: 12,
+            padding: "12px 16px",
+            font: "400 13px/1.5 Roboto, sans-serif",
+          }}
+        >
+          🎤 マイクが利用できません（メトロノームは動作します）: {micWarning}
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div
       style={{
-        padding: "24px 16px",
+        padding: isDesktop ? "32px 32px" : "24px 16px",
         display: "flex",
         flexDirection: "column",
         gap: 16,
@@ -107,55 +144,57 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
         preset={preset}
         currentBeat={practice.currentBeat}
         isPlaying={practice.phase === "playing"}
+        beatWidth={isDesktop ? 64 : 48}
       />
 
-      <MetronomeControls
-        bpm={practice.metronome.bpm}
-        isPlaying={practice.metronome.isPlaying}
-        phase={practice.phase}
-        onBpmChange={practice.metronome.setBpm}
-        onStart={handleStart}
-        onStop={practice.stopSession}
-      />
-
-      {displayedError && (
-        <div
-          role="alert"
-          style={{
-            background: "#ef53501a",
-            border: "1px solid #ef535066",
-            color: "#ef5350",
-            borderRadius: 12,
-            padding: "12px 16px",
-            font: "400 13px/1.5 Roboto, sans-serif",
-          }}
-        >
-          {displayedError}
-        </div>
-      )}
-
-      {micWarning && (
+      {isDesktop ? (
         <div
           style={{
-            background: "#f9a8251a",
-            border: "1px solid #f9a82566",
-            color: "#f9a825",
-            borderRadius: 12,
-            padding: "12px 16px",
-            font: "400 13px/1.5 Roboto, sans-serif",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+            alignItems: "start",
           }}
         >
-          🎤 マイクが利用できません（メトロノームは動作します）: {micWarning}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <MetronomeControls
+              bpm={practice.metronome.bpm}
+              isPlaying={practice.metronome.isPlaying}
+              phase={practice.phase}
+              onBpmChange={practice.metronome.setBpm}
+              onStart={handleStart}
+              onStop={practice.stopSession}
+            />
+            {errorBlock}
+          </div>
+          <TimingFeedback
+            lastEvent={practice.lastEvent}
+            stats={practice.stats}
+            phase={practice.phase}
+            timingEvents={practice.timingEvents}
+            loop={practice.loop}
+          />
         </div>
+      ) : (
+        <>
+          <MetronomeControls
+            bpm={practice.metronome.bpm}
+            isPlaying={practice.metronome.isPlaying}
+            phase={practice.phase}
+            onBpmChange={practice.metronome.setBpm}
+            onStart={handleStart}
+            onStop={practice.stopSession}
+          />
+          {errorBlock}
+          <TimingFeedback
+            lastEvent={practice.lastEvent}
+            stats={practice.stats}
+            phase={practice.phase}
+            timingEvents={practice.timingEvents}
+            loop={practice.loop}
+          />
+        </>
       )}
-
-      <TimingFeedback
-        lastEvent={practice.lastEvent}
-        stats={practice.stats}
-        phase={practice.phase}
-        timingEvents={practice.timingEvents}
-        loop={practice.loop}
-      />
     </div>
   );
 }

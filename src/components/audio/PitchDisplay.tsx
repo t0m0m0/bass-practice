@@ -3,9 +3,10 @@ import { Card } from "../md3";
 
 interface PitchDisplayProps {
   pitch: PitchResult | null;
+  gaugeSize?: number;
 }
 
-export function PitchDisplay({ pitch }: PitchDisplayProps) {
+export function PitchDisplay({ pitch, gaugeSize = 240 }: PitchDisplayProps) {
   const isActive = pitch?.detected === true;
   const cents = isActive ? pitch.cents : 0;
   const abs = Math.abs(cents);
@@ -50,12 +51,12 @@ export function PitchDisplay({ pitch }: PitchDisplayProps) {
         </div>
       </div>
 
-      <CentsGauge cents={cents} active={isActive} />
+      <CentsGauge cents={cents} active={isActive} size={gaugeSize} />
     </Card>
   );
 }
 
-function CentsGauge({ cents, active }: { cents: number; active: boolean }) {
+function CentsGauge({ cents, active, size = 240 }: { cents: number; active: boolean; size?: number }) {
   const clamped = Math.max(-50, Math.min(50, cents));
   const abs = Math.abs(cents);
   const colorHex =
@@ -63,6 +64,17 @@ function CentsGauge({ cents, active }: { cents: number; active: boolean }) {
   const colorClass =
     abs <= 10 ? "bg-emerald-500" : abs <= 25 ? "bg-yellow-500" : "bg-red-500";
   const label = abs <= 5 ? "IN TUNE" : clamped < 0 ? "FLAT" : "SHARP";
+
+  // Scale everything relative to base size of 240
+  const scale = size / 240;
+  const svgW = size;
+  const svgH = Math.round(130 * scale);
+  const cx = size / 2;
+  const cy = svgH - Math.round(10 * scale);
+  const radius = Math.round(100 * scale);
+  const sw = Math.round(12 * scale);
+  const pad = Math.round(20 * scale);
+  const needleH = Math.round(100 * scale);
 
   return (
     <div
@@ -77,51 +89,51 @@ function CentsGauge({ cents, active }: { cents: number; active: boolean }) {
       <div
         style={{
           position: "relative",
-          width: 240,
-          height: 130,
+          width: svgW,
+          height: svgH,
           overflow: "hidden",
         }}
       >
         <svg
-          width="240"
-          height="130"
-          viewBox="0 0 240 130"
+          width={svgW}
+          height={svgH}
+          viewBox={`0 0 ${svgW} ${svgH}`}
           style={{ position: "absolute", top: 0, left: 0 }}
         >
           <path
-            d="M 20 120 A 100 100 0 0 1 220 120"
+            d={`M ${pad} ${cy} A ${radius} ${radius} 0 0 1 ${svgW - pad} ${cy}`}
             fill="none"
             stroke="var(--md-surface-container-highest)"
-            strokeWidth="12"
+            strokeWidth={sw}
             strokeLinecap="round"
           />
           {active && (
             <path
-              d="M 20 120 A 100 100 0 0 1 220 120"
+              d={`M ${pad} ${cy} A ${radius} ${radius} 0 0 1 ${svgW - pad} ${cy}`}
               fill="none"
               stroke={colorHex + "44"}
-              strokeWidth="12"
+              strokeWidth={sw}
               strokeLinecap="round"
             />
           )}
           <line
-            x1="120"
-            y1="20"
-            x2="120"
-            y2="40"
+            x1={cx}
+            y1={cy - radius - Math.round(6 * scale)}
+            x2={cx}
+            y2={cy - radius + Math.round(14 * scale)}
             stroke="var(--md-outline)"
             strokeWidth="2"
             strokeLinecap="round"
           />
           {[-50, -25, 0, 25, 50].map((t) => {
             const angle = (t / 50) * 75;
-            const rad = ((90 + angle) * Math.PI) / 180;
-            const r1 = 94;
-            const r2 = 104;
-            const x1 = 120 + r1 * Math.cos(Math.PI - rad);
-            const y1 = 120 - r1 * Math.sin(Math.PI - rad);
-            const x2 = 120 + r2 * Math.cos(Math.PI - rad);
-            const y2 = 120 - r2 * Math.sin(Math.PI - rad);
+            const rad2 = ((90 + angle) * Math.PI) / 180;
+            const r1 = radius - Math.round(6 * scale);
+            const r2 = radius + Math.round(4 * scale);
+            const x1 = cx + r1 * Math.cos(Math.PI - rad2);
+            const y1 = cy - r1 * Math.sin(Math.PI - rad2);
+            const x2 = cx + r2 * Math.cos(Math.PI - rad2);
+            const y2 = cy - r2 * Math.sin(Math.PI - rad2);
             return (
               <line
                 key={t}
@@ -143,7 +155,7 @@ function CentsGauge({ cents, active }: { cents: number; active: boolean }) {
               bottom: 0,
               left: "50%",
               width: 2,
-              height: 100,
+              height: needleH,
               transformOrigin: "bottom center",
               transform: `translateX(-50%) rotate(${(clamped / 50) * 75}deg)`,
               background: colorHex,

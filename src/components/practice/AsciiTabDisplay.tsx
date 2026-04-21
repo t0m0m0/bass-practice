@@ -6,11 +6,12 @@ interface AsciiTabDisplayProps {
   preset: TabPreset;
   currentBeat: number;
   isPlaying: boolean;
+  beatWidth?: number;
 }
 
 const STRING_LABELS = ["G", "D", "A", "E"];
 const STRING_THICKNESS = [1, 1.5, 2, 2.5];
-const BEAT_W = 48;
+const DEFAULT_BEAT_W = 48;
 const ROW_H = 52;
 const LABEL_W = 36;
 const PADDING = 16;
@@ -19,7 +20,9 @@ export function AsciiTabDisplay({
   preset,
   currentBeat,
   isPlaying,
+  beatWidth = DEFAULT_BEAT_W,
 }: AsciiTabDisplayProps) {
+  const BEAT_W = beatWidth;
   const totalBeats = preset.timeSignature.beatsPerMeasure * preset.measures;
   const bpm = preset.timeSignature.beatsPerMeasure;
   const scrollRef = useRef<HTMLDivElement | null>(null);
