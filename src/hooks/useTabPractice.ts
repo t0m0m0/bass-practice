@@ -119,8 +119,13 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
             setTimingEvents((prev) => [...prev, ...misses]);
           }
 
-          // Evaluate auto-BPM at loop boundary
-          autoBpmRef.current.evaluateLoop(loopEventsRef.current);
+          // Evaluate auto-BPM at loop boundary. Pass the freshly-observed
+          // BPM from the ref, not a closed-over state value, so consecutive
+          // BPM UPs compound correctly across loops.
+          autoBpmRef.current.evaluateLoop(
+            loopEventsRef.current,
+            metronomeRef.current.bpm,
+          );
           loopEventsRef.current = [];
 
           setLoop((prev) => prev + 1);

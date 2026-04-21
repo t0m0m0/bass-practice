@@ -44,7 +44,7 @@ describe("useAutoBpm", () => {
     const { result } = renderHook(() => useAutoBpm(100, setBpm));
     const events: TimingEvent[] = [makeHit(0), makeHit(1), makeHit(2)];
     act(() => {
-      result.current.evaluateLoop(events);
+      result.current.evaluateLoop(events, 100);
     });
     expect(setBpm).not.toHaveBeenCalled();
   });
@@ -59,7 +59,7 @@ describe("useAutoBpm", () => {
     // 100% hit rate, threshold is 90%
     const events: TimingEvent[] = [makeHit(0), makeHit(1), makeHit(2)];
     act(() => {
-      result.current.evaluateLoop(events);
+      result.current.evaluateLoop(events, 100);
     });
 
     expect(setBpm).toHaveBeenCalledWith(105); // default increment is 5
@@ -77,7 +77,7 @@ describe("useAutoBpm", () => {
     // 50% hit rate < 90% threshold
     const events: TimingEvent[] = [makeHit(0), makeMiss(1)];
     act(() => {
-      result.current.evaluateLoop(events);
+      result.current.evaluateLoop(events, 100);
     });
 
     expect(setBpm).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe("useAutoBpm", () => {
 
     const events: TimingEvent[] = [makeHit(0), makeHit(1)];
     act(() => {
-      result.current.evaluateLoop(events);
+      result.current.evaluateLoop(events, 298);
     });
 
     expect(setBpm).toHaveBeenCalledWith(300); // capped at max
@@ -109,7 +109,7 @@ describe("useAutoBpm", () => {
 
     const events: TimingEvent[] = [makeHit(0), makeHit(1)];
     act(() => {
-      result.current.evaluateLoop(events);
+      result.current.evaluateLoop(events, 300);
     });
 
     expect(setBpm).not.toHaveBeenCalled();
@@ -124,7 +124,7 @@ describe("useAutoBpm", () => {
 
     const events: TimingEvent[] = [makeHit(0), makeHit(1)];
     act(() => {
-      result.current.evaluateLoop(events);
+      result.current.evaluateLoop(events, 100);
     });
 
     expect(result.current.notification).not.toBeNull();
@@ -145,7 +145,7 @@ describe("useAutoBpm", () => {
 
     const events: TimingEvent[] = [makeHit(0), makeHit(1)];
     act(() => {
-      result.current.evaluateLoop(events);
+      result.current.evaluateLoop(events, 100);
     });
 
     expect(result.current.levelUps).toBe(1);
@@ -171,10 +171,54 @@ describe("useAutoBpm", () => {
     // 66% hit rate > 50% threshold
     const events: TimingEvent[] = [makeHit(0), makeHit(1), makeMiss(2)];
     act(() => {
-      result.current.evaluateLoop(events);
+      result.current.evaluateLoop(events, 120);
     });
 
     expect(setBpm).toHaveBeenCalledWith(130); // increment of 10
+  });
+
+  it("compounds BPM across consecutive loops using the passed-in currentBpm", () => {
+    // Regression: evaluateLoop must rely on the caller-supplied currentBpm,
+    // not on a stale value closed over at hook render time. Two back-to-back
+    // loops (without any re-render between them) should both increase BPM.
+    const { result } = renderHook(() => useAutoBpm(100, setBpm));
+
+    act(() => {
+      result.current.setEnabled(true);
+    });
+
+    const events: TimingEvent[] = [makeHit(0), makeHit(1)];
+    act(() => {
+      result.current.evaluateLoop(events, 100);
+      // Simulate the caller reading the fresh BPM from a ref on the next
+      // loop boundary, before React has flushed the previous setBpm.
+      result.current.evaluateLoop(events, 105);
+    });
+
+    expect(setBpm).toHaveBeenNthCalledWith(1, 105);
+    expect(setBpm).toHaveBeenNthCalledWith(2, 110);
+    expect(result.current.levelUps).toBe(2);
+  });
+
+  it("clears pending notification timer on unmount", () => {
+    const { result, unmount } = renderHook(() => useAutoBpm(100, setBpm));
+
+    act(() => {
+      result.current.setEnabled(true);
+    });
+
+    const events: TimingEvent[] = [makeHit(0), makeHit(1)];
+    act(() => {
+      result.current.evaluateLoop(events, 100);
+    });
+    expect(result.current.notification).not.toBeNull();
+
+    unmount();
+    // Advancing past the notification timeout must not throw or cause
+    // a state update on an unmounted component.
+    expect(() => {
+      vi.advanceTimersByTime(5000);
+    }).not.toThrow();
   });
 
   it("ignores empty loop events", () => {
@@ -185,7 +229,7 @@ describe("useAutoBpm", () => {
     });
 
     act(() => {
-      result.current.evaluateLoop([]);
+      result.current.evaluateLoop([], 100);
     });
 
     expect(setBpm).not.toHaveBeenCalled();
