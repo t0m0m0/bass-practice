@@ -173,7 +173,7 @@ function RhythmPracticeContent({
         pattern={pattern}
         currentBeat={practice.currentBeat}
         isPlaying={practice.phase === "playing"}
-        timingEvents={practice.timingEvents}
+        timingEvents={practice.currentLoopEvents}
         loop={practice.loop}
       />
 
