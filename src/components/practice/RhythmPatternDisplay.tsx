@@ -39,11 +39,14 @@ export function RhythmPatternDisplay({
   const svgH = ROW_H + 60;
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Only scroll when the integer beat changes — RAF-driven fractional updates
+  // would otherwise interrupt `behavior: smooth` every frame and jank.
+  const beatIndex = Math.floor(currentBeat);
   useEffect(() => {
-    if (!isPlaying || currentBeat < 0 || !scrollRef.current) return;
-    const x = LEFT_PAD + (currentBeat / unit) * cellW - 80;
+    if (!isPlaying || beatIndex < 0 || !scrollRef.current) return;
+    const x = LEFT_PAD + (beatIndex / unit) * cellW - 80;
     scrollRef.current.scrollTo({ left: Math.max(0, x), behavior: "smooth" });
-  }, [currentBeat, isPlaying, cellW, unit]);
+  }, [beatIndex, isPlaying, cellW, unit]);
 
   // Latest event per target beat (within current loop window of display).
   const latestEventByBeat = useMemo(() => {
