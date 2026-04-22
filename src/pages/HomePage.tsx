@@ -90,6 +90,39 @@ export function HomePage() {
         </Link>
       </div>
 
+      {/* Rhythm practice */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <SectionLabel>リズム練習</SectionLabel>
+        <Link
+          to="/practice/rhythm"
+          style={{
+            textDecoration: "none",
+            background: "var(--md-tertiary-container, var(--md-secondary-container))",
+            color: "var(--md-on-tertiary-container, var(--md-on-secondary-container))",
+            borderRadius: 16,
+            padding: "16px 18px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <span style={{ fontSize: 28 }}>🥁</span>
+          <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ font: "500 15px/1.3 Roboto, sans-serif" }}>
+              リズムパターンに特化した練習
+            </span>
+            <span
+              style={{
+                font: "400 12px/1.4 Roboto, sans-serif",
+                opacity: 0.8,
+              }}
+            >
+              8分 / 16分 / シャッフル / シンコペーション
+            </span>
+          </span>
+        </Link>
+      </div>
+
       {/* Preset list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <SectionLabel>プリセット</SectionLabel>
