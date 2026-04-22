@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { RhythmPattern } from "../../types/rhythm";
-import type { TimingEvent } from "../../types/practice";
+import type { HitTimingEvent, TimingEvent } from "../../types/practice";
 import { Card } from "../md3";
 
 interface RhythmPatternDisplayProps {
@@ -190,11 +190,10 @@ export function RhythmPatternDisplay({
             strokeWidth={1}
           />
           {timingEvents
-            .filter((e) => e.judgment !== "miss")
+            .filter((e): e is HitTimingEvent => e.judgment !== "miss")
             .map((e, i) => {
               const x = beatToX(e.targetBeat);
-              const delta = (e as { deltaMs: number }).deltaMs;
-              const offsetY = Math.max(-20, Math.min(20, (delta / 100) * 20));
+              const offsetY = Math.max(-20, Math.min(20, (e.deltaMs / 100) * 20));
               const color =
                 e.judgment === "hit"
                   ? "#4ecdc4"
