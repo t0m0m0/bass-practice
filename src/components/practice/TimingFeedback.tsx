@@ -7,7 +7,13 @@ import { Card } from "../md3";
 
 interface TimingFeedbackProps {
   lastEvent: TimingEvent | null;
-  stats: { hitRate: number; avgAbsDeltaMs: number };
+  stats: {
+    hitRate: number;
+    avgAbsDeltaMs: number;
+    pitchAccuracy: number;
+    avgAbsCents: number;
+    pitchJudgedCount: number;
+  };
   phase: TabSessionPhase;
   timingEvents: TimingEvent[];
   loop: number;
@@ -18,6 +24,8 @@ const JUDGMENT_CONFIG: Record<
   { label: string; color: string; bg: string }
 > = {
   hit: { label: "HIT", color: "#4ecdc4", bg: "#4ecdc41a" },
+  perfect: { label: "PERFECT", color: "#66ffcc", bg: "#66ffcc22" },
+  "timing-only": { label: "TIMING", color: "#ffb74d", bg: "#ffb74d1a" },
   early: { label: "EARLY", color: "#f9a825", bg: "#f9a8251a" },
   late: { label: "LATE", color: "#ff7043", bg: "#ff70431a" },
   miss: { label: "MISS", color: "#ef5350", bg: "#ef53501a" },
@@ -91,15 +99,26 @@ export function TimingFeedback({
                 {cfg.label}
               </div>
 
-              {lastEvent.judgment !== "miss" && lastEvent.deltaMs !== 0 && (
+              {lastEvent.judgment !== "miss" && (
                 <div
                   style={{
-                    font: "400 14px/1 Roboto Mono, monospace",
+                    font: "400 14px/1.3 Roboto Mono, monospace",
                     color: "var(--md-on-surface-variant)",
+                    textAlign: "center",
                   }}
                 >
-                  {lastEvent.deltaMs > 0 ? "+" : ""}
-                  {lastEvent.deltaMs}ms
+                  {lastEvent.deltaMs !== 0 && (
+                    <>
+                      {lastEvent.deltaMs > 0 ? "+" : ""}
+                      {lastEvent.deltaMs}ms
+                    </>
+                  )}
+                  {lastEvent.pitchCents != null && (
+                    <div>
+                      {lastEvent.pitchCents > 0 ? "+" : ""}
+                      {lastEvent.pitchCents}¢
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -249,8 +268,69 @@ export function TimingFeedback({
                 </div>
               </div>
             </div>
+            {stats.pitchJudgedCount > 0 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 16,
+                  marginBottom: 16,
+                }}
+              >
+                <div
+                  style={{
+                    background: "var(--md-surface-container)",
+                    borderRadius: 12,
+                    padding: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      font: "700 32px/1 Roboto, sans-serif",
+                      color: "#66ffcc",
+                    }}
+                  >
+                    {Math.round(stats.pitchAccuracy * 100)}%
+                  </div>
+                  <div
+                    style={{
+                      font: "400 12px/1 Roboto, sans-serif",
+                      color: "var(--md-on-surface-variant)",
+                      marginTop: 4,
+                    }}
+                  >
+                    Pitch Accuracy
+                  </div>
+                </div>
+                <div
+                  style={{
+                    background: "var(--md-surface-container)",
+                    borderRadius: 12,
+                    padding: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      font: "700 32px/1 Roboto, sans-serif",
+                      color: "var(--md-on-surface)",
+                    }}
+                  >
+                    {stats.avgAbsCents}¢
+                  </div>
+                  <div
+                    style={{
+                      font: "400 12px/1 Roboto, sans-serif",
+                      color: "var(--md-on-surface-variant)",
+                      marginTop: 4,
+                    }}
+                  >
+                    Avg Cents
+                  </div>
+                </div>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {(["hit", "early", "late", "miss"] as TimingJudgment[]).map(
+              {(["perfect", "timing-only", "hit", "early", "late", "miss"] as TimingJudgment[]).map(
                 (j) => {
                   const count = timingEvents.filter(
                     (e) => e.judgment === j,

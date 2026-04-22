@@ -50,7 +50,13 @@ export interface TabPreset {
   notes: TabNote[];
 }
 
-export type TimingJudgment = "hit" | "early" | "late" | "miss";
+export type TimingJudgment =
+  | "hit" // timing-correct, pitch judgment disabled or unknown
+  | "perfect" // timing-correct + pitch-correct
+  | "timing-only" // timing-correct + pitch-incorrect
+  | "early"
+  | "late"
+  | "miss";
 
 interface TimingEventBase {
   targetBeat: number;
@@ -58,9 +64,14 @@ interface TimingEventBase {
 }
 
 export interface HitTimingEvent extends TimingEventBase {
-  judgment: "hit" | "early" | "late";
+  judgment: "hit" | "perfect" | "timing-only" | "early" | "late";
   onsetTimeMs: number;
   deltaMs: number; // positive = late, negative = early
+  // Pitch accuracy fields. `null` means pitch was not evaluated
+  // (pitch judgment disabled, or no clear pitch detected after onset).
+  expectedFrequency: number | null;
+  detectedFrequency: number | null;
+  pitchCents: number | null; // signed offset from expected in cents
 }
 
 export interface MissTimingEvent extends TimingEventBase {
