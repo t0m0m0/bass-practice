@@ -57,6 +57,39 @@ export function HomePage() {
         </div>
       </div>
 
+      {/* Scale practice */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <SectionLabel>スケール練習</SectionLabel>
+        <Link
+          to="/practice/scale"
+          style={{
+            textDecoration: "none",
+            background: "var(--md-secondary-container)",
+            color: "var(--md-on-secondary-container)",
+            borderRadius: 16,
+            padding: "16px 18px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <span style={{ fontSize: 28 }}>🎼</span>
+          <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ font: "500 15px/1.3 Roboto, sans-serif" }}>
+              キー × スケールを選んで練習
+            </span>
+            <span
+              style={{
+                font: "400 12px/1.4 Roboto, sans-serif",
+                opacity: 0.8,
+              }}
+            >
+              指板上に構成音表示 + ガイド付き上行・下行
+            </span>
+          </span>
+        </Link>
+      </div>
+
       {/* Preset list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <SectionLabel>プリセット</SectionLabel>

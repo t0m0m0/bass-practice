@@ -4,6 +4,7 @@ import { HomePage } from "./pages/HomePage";
 import { TunerPage } from "./pages/TunerPage";
 import { TabPracticePage } from "./pages/TabPracticePage";
 import { EditorPage } from "./pages/EditorPage";
+import { ScalePracticePage } from "./pages/ScalePracticePage";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/practice/tab/:presetId" element={<TabPracticePage />} />
         <Route path="/editor" element={<EditorPage />} />
         <Route path="/editor/:id" element={<EditorPage />} />
+        <Route path="/practice/scale" element={<ScalePracticePage />} />
       </Route>
     </Routes>
   );
