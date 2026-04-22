@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import type { TabNote, TabPreset } from "../../types/practice";
+import { toggleNote } from "../../lib/customTabs";
 import { Card } from "../md3";
 
 interface TabGridProps {
@@ -19,21 +20,7 @@ export function TabGrid({ preset, onNotesChange }: TabGridProps) {
     preset.notes.find((n) => n.string === stringNum && n.beat === beat);
 
   const handleCellClick = (stringNum: number, beat: number) => {
-    const existing = cellAt(stringNum, beat);
-    if (existing && existing.fret === selectedFret) {
-      onNotesChange(preset.notes.filter((n) => n !== existing));
-    } else if (existing) {
-      onNotesChange(
-        preset.notes.map((n) =>
-          n === existing ? { ...n, fret: selectedFret } : n,
-        ),
-      );
-    } else {
-      onNotesChange([
-        ...preset.notes,
-        { string: stringNum, fret: selectedFret, beat },
-      ]);
-    }
+    onNotesChange(toggleNote(preset.notes, stringNum, beat, selectedFret));
   };
 
   const cellW = 40;
