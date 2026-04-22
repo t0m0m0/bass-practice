@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { TabPreset, TimeSignature } from "../types/practice";
 import { tabPresets } from "../data/tabPresets";
@@ -7,7 +7,7 @@ import {
   createEmptyPreset,
   resizeNotes,
 } from "../lib/customTabs";
-import { useCustomTabs } from "../hooks/useCustomTabs";
+import { findCustomTab, useCustomTabs } from "../hooks/useCustomTabs";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { TabGrid } from "../components/editor/TabGrid";
 import { AsciiTabDisplay } from "../components/practice/AsciiTabDisplay";
@@ -21,32 +21,24 @@ export function EditorPage() {
   const { tabs, upsert, remove } = useCustomTabs();
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
-  // Initial preset is derived ONCE from URL params; we don't want it to reset
-  // while the user is editing. `useMemo` with a key-dependency set to `id`
-  // would re-fetch when the route changes (e.g. after first save).
-  const initial = useMemo<TabPreset>(() => {
-    if (id) {
-      const existing = tabs.find((t) => t.id === id);
-      if (existing) return existing;
-    }
-    if (clonePresetId) {
-      const src =
-        tabPresets.find((p) => p.id === clonePresetId) ??
-        tabs.find((t) => t.id === clonePresetId);
-      if (src) return cloneAsCustom(src);
-    }
-    return createEmptyPreset();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  const [draft, setDraft] = useState<TabPreset>(initial);
+  // Initial preset is derived from URL params. We read the store synchronously
+  // via `findCustomTab` (not the `tabs` snapshot) to avoid depending on the
+  // order in which components subscribe. The draft is then owned by local
+  // state and only reset when the route `id` changes.
+  const [draft, setDraft] = useState<TabPreset>(() =>
+    buildInitialPreset(id, clonePresetId),
+  );
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
-  // When route id changes (new/edit switch), reset draft.
-  useEffect(() => {
-    setDraft(initial);
+  // Reset draft when the route id changes (new/edit switch). Using the
+  // "changing key during render" pattern rather than useEffect avoids a
+  // wasted render and the cascading-setState lint warning.
+  const [prevId, setPrevId] = useState(id);
+  if (prevId !== id) {
+    setPrevId(id);
+    setDraft(buildInitialPreset(id, clonePresetId));
     setSaveMsg(null);
-  }, [initial]);
+  }
 
   const updateField = <K extends keyof TabPreset>(key: K, value: TabPreset[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -278,6 +270,23 @@ function LabeledNumber({ label, value, min, max, onChange }: LabeledNumberProps)
       />
     </label>
   );
+}
+
+function buildInitialPreset(
+  id: string | undefined,
+  clonePresetId: string | null,
+): TabPreset {
+  if (id) {
+    const existing = findCustomTab(id);
+    if (existing) return existing;
+  }
+  if (clonePresetId) {
+    const src =
+      tabPresets.find((p) => p.id === clonePresetId) ??
+      findCustomTab(clonePresetId);
+    if (src) return cloneAsCustom(src);
+  }
+  return createEmptyPreset();
 }
 
 const inputStyle: CSSProperties = {
