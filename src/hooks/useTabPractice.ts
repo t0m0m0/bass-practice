@@ -35,6 +35,10 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
 
   const [phase, setPhase] = useState<TabSessionPhase>("idle");
   const [timingEvents, setTimingEvents] = useState<TimingEvent[]>([]);
+  // Events observed within the current loop only. Consumers that want a
+  // per-loop visualisation (scatter, per-step highlight) should use this
+  // instead of `timingEvents`, which accumulates across all loops.
+  const [currentLoopEvents, setCurrentLoopEvents] = useState<TimingEvent[]>([]);
   const [currentBeat, setCurrentBeat] = useState(-1);
   const [loop, setLoop] = useState(0);
   const [lastEvent, setLastEvent] = useState<TimingEvent | null>(null);
@@ -84,6 +88,7 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
           allEventsRef.current = [...allEventsRef.current, event];
           loopEventsRef.current = [...loopEventsRef.current, event];
           setTimingEvents((prev) => [...prev, event]);
+          setCurrentLoopEvents((prev) => [...prev, event]);
           setLastEvent(event);
         }
       }
@@ -117,6 +122,7 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
             allEventsRef.current = [...allEventsRef.current, ...misses];
             loopEventsRef.current = [...loopEventsRef.current, ...misses];
             setTimingEvents((prev) => [...prev, ...misses]);
+            setCurrentLoopEvents((prev) => [...prev, ...misses]);
           }
 
           // Evaluate auto-BPM at loop boundary. Pass the freshly-observed
@@ -129,6 +135,9 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
           loopEventsRef.current = [];
 
           setLoop((prev) => prev + 1);
+          // Reset per-loop events so the next loop starts with a blank
+          // visualisation (no stale hit/miss colours from the previous pass).
+          setCurrentLoopEvents([]);
         }
         hitBeatsRef.current = new Set();
         targetsRef.current = buildTimingTargets(
@@ -148,6 +157,7 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
   // --- Session lifecycle ---
   const startSession = useCallback(async () => {
     setTimingEvents([]);
+    setCurrentLoopEvents([]);
     setCurrentBeat(-1);
     setLoop(0);
     setLastEvent(null);
@@ -211,6 +221,7 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
       currentBeat,
       loop,
       timingEvents,
+      currentLoopEvents,
       lastEvent,
       stats,
       metronome: metronomeSlice,
@@ -218,6 +229,6 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
       startSession,
       stopSession,
     }),
-    [phase, currentBeat, loop, timingEvents, lastEvent, stats, metronomeSlice, autoBpm, startSession, stopSession],
+    [phase, currentBeat, loop, timingEvents, currentLoopEvents, lastEvent, stats, metronomeSlice, autoBpm, startSession, stopSession],
   );
 }
