@@ -12,6 +12,7 @@ export function Layout() {
   const { tabs: customTabs } = useCustomTabs();
   const isPractice = location.pathname.startsWith("/practice/tab/");
   const isEditor = location.pathname.startsWith("/editor");
+  const isScalePractice = location.pathname === "/practice/scale";
   const practicePreset = isPractice
     ? (tabPresets.find((p) => p.id === params.presetId) ??
       customTabs.find((p) => p.id === params.presetId))
@@ -23,12 +24,14 @@ export function Layout() {
       ? (params.id
           ? (customTabs.find((t) => t.id === params.id)?.name ?? "タブ譜を編集")
           : "タブ譜を作る")
-      : location.pathname === "/tuner"
-        ? "チューナー"
-        : "Bass Practice";
+      : isScalePractice
+        ? "スケール練習"
+        : location.pathname === "/tuner"
+          ? "チューナー"
+          : "Bass Practice";
 
   const currentTab = location.pathname === "/tuner" ? "tuner" : "home";
-  const hideNav = isPractice || isEditor;
+  const hideNav = isPractice || isEditor || isScalePractice;
 
   return (
     <div
