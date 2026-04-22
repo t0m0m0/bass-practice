@@ -16,7 +16,11 @@ export function RhythmPracticePage() {
     rhythmPatterns.find((p) => p.id === selectedId) ?? rhythmPatterns[0];
   const preset = useMemo(() => rhythmPatternToTabPreset(pattern), [pattern]);
 
-  // Remount practice when switching patterns so state / metronome reset.
+  // Audio is owned by the outer component so switching patterns does NOT
+  // tear down the AudioEngine / lose mic permission. Only the practice
+  // session (metronome, timing events) is remounted via `key`.
+  const audio = useAudioInput();
+
   return (
     <RhythmPracticeContent
       key={pattern.id}
@@ -25,6 +29,7 @@ export function RhythmPracticePage() {
       patterns={rhythmPatterns}
       onSelect={setSelectedId}
       selectedId={selectedId}
+      audio={audio}
     />
   );
 }
@@ -35,6 +40,7 @@ interface ContentProps {
   patterns: typeof rhythmPatterns;
   selectedId: string;
   onSelect: (id: string) => void;
+  audio: ReturnType<typeof useAudioInput>;
 }
 
 function RhythmPracticeContent({
@@ -43,8 +49,8 @@ function RhythmPracticeContent({
   patterns,
   selectedId,
   onSelect,
+  audio,
 }: ContentProps) {
-  const audio = useAudioInput();
   const practice = useTabPractice(preset, audio.engine);
   const [startError, setStartError] = useState<string | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
