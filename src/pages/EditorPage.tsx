@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { TabPreset, TimeSignature } from "../types/practice";
 import { tabPresets } from "../data/tabPresets";
@@ -243,6 +243,26 @@ interface LabeledNumberProps {
 }
 
 function LabeledNumber({ label, value, min, max, onChange }: LabeledNumberProps) {
+  // Keep a local string buffer so the user can transiently clear the field
+  // or type partial values without getting clamped on every keystroke.
+  const [text, setText] = useState(String(value));
+
+  // Sync buffer when the committed value changes from outside (e.g. resize).
+  useEffect(() => {
+    setText(String(value));
+  }, [value]);
+
+  const commit = (raw: string) => {
+    const n = Number(raw);
+    if (raw.trim() === "" || !Number.isFinite(n)) {
+      setText(String(value));
+      return;
+    }
+    const clamped = Math.max(min, Math.min(max, Math.trunc(n)));
+    setText(String(clamped));
+    if (clamped !== value) onChange(clamped);
+  };
+
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <span
@@ -259,11 +279,13 @@ function LabeledNumber({ label, value, min, max, onChange }: LabeledNumberProps)
         type="number"
         min={min}
         max={max}
-        value={value}
-        onChange={(e) => {
-          const n = Number(e.target.value);
-          if (Number.isFinite(n)) {
-            onChange(Math.max(min, Math.min(max, n)));
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={(e) => commit(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit((e.target as HTMLInputElement).value);
+            (e.target as HTMLInputElement).blur();
           }
         }}
         style={inputStyle}
