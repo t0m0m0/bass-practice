@@ -4,6 +4,7 @@ import {
   isPitchClassInScale,
   getScaleFretPositions,
   buildAscDescSequence,
+  normalizePitchClass,
 } from "./scales";
 
 describe("scales", () => {
@@ -42,6 +43,13 @@ describe("scales", () => {
     expect(
       pos.some((p) => p.string === 4 && p.fret === 1 && p.pitchClass === "F"),
     ).toBe(true);
+  });
+
+  it("normalizePitchClass converts flats to sharps", () => {
+    expect(normalizePitchClass("Bb")).toBe("A#");
+    expect(normalizePitchClass("Eb")).toBe("D#");
+    expect(normalizePitchClass("A#")).toBe("A#");
+    expect(normalizePitchClass("C")).toBe("C");
   });
 
   it("buildAscDescSequence ascends then descends an octave", () => {

@@ -55,7 +55,7 @@ export function getScalePitchClasses(
   return { key, type, pitchClasses: pcs };
 }
 
-function normalizePitchClass(pc: string): string {
+export function normalizePitchClass(pc: string): string {
   // Canonicalize to sharp-notation pitch class via MIDI round-trip.
   if (!pc) return pc;
   const midi = Note.midi(`${pc}4`);

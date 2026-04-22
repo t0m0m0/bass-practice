@@ -13,6 +13,7 @@ import {
   getScaleFretPositions,
   isPitchClassInScale,
   buildAscDescSequence,
+  normalizePitchClass,
   type Key,
   type ScaleTypeId,
 } from "../lib/music/scales";
@@ -62,7 +63,9 @@ export function ScalePracticePage() {
   }, [keyRoot, scaleType, position, isGuided]);
 
   const currentTarget = isGuided ? sequence[seqIndex] : undefined;
-  const currentTargetPc = currentTarget ? Note.pitchClass(currentTarget) : undefined;
+  const currentTargetPc = currentTarget
+    ? normalizePitchClass(Note.pitchClass(currentTarget))
+    : undefined;
   const targetFretPos = useMemo<FretPosition | null>(() => {
     if (!currentTarget) return null;
     const targetMidi = Note.midi(currentTarget);
@@ -85,24 +88,43 @@ export function ScalePracticePage() {
     return best;
   }, [currentTarget, positions]);
 
-  // Detected pitch (stable reference)
-  const detectedPc = pitch?.detected ? pitch.pitchClass : null;
-  const isInScale = detectedPc ? isPitchClassInScale(detectedPc, scale.pitchClasses) : false;
+  // Detected pitch (normalized to sharp convention for reliable comparison)
+  const detectedPcRaw = pitch?.detected ? pitch.pitchClass : null;
+  const detectedPc = detectedPcRaw ? normalizePitchClass(detectedPcRaw) : null;
+  const isInScale = detectedPc
+    ? isPitchClassInScale(detectedPc, scale.pitchClasses)
+    : false;
 
   // Advance guided progress when the detected pitch (from the external audio
   // stream) matches the current target. The audio pipeline is an external
   // system, so an effect is appropriate here.
-  const lastAdvanceRef = useRef<{ pc: string; idx: number } | null>(null);
+  //
+  // 連続して同じピッチクラスがターゲットになる場合 (例: 上行→下行で C,B,A... の
+  // 折返し付近) に一度の発音で複数ステップ進んでしまわないよう、進行後は
+  // 「音が途切れる」か「別のピッチクラスが検出される」までアーム解除する。
+  const armedRef = useRef(true);
   useEffect(() => {
-    if (!isGuided || !currentTargetPc || !detectedPc) return;
+    if (!isGuided) {
+      armedRef.current = true;
+      return;
+    }
+    if (!detectedPc) {
+      // 音が切れた → 次の発音を受け付ける
+      armedRef.current = true;
+      return;
+    }
+    if (!currentTargetPc) return;
+    if (!armedRef.current) {
+      // アーム解除中: 違うピッチクラスに変わったら再アーム
+      if (detectedPc !== currentTargetPc) armedRef.current = true;
+      return;
+    }
     if (detectedPc !== currentTargetPc) return;
-    const last = lastAdvanceRef.current;
-    if (last && last.pc === detectedPc && last.idx === seqIndex) return;
-    lastAdvanceRef.current = { pc: detectedPc, idx: seqIndex };
+    armedRef.current = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHitCount((c) => c + 1);
     setSeqIndex((i) => (i + 1) % sequence.length);
-  }, [detectedPc, currentTargetPc, isGuided, seqIndex, sequence.length]);
+  }, [detectedPc, currentTargetPc, isGuided, sequence.length]);
 
   return (
     <div
