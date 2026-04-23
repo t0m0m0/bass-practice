@@ -3,18 +3,20 @@ import { Card, FilledButton, OutlinedButton } from "../md3";
 
 interface AudioSetupProps {
   isListening: boolean;
+  isStarting?: boolean;
   isPermissionGranted: boolean;
   inputLevel: number;
   availableDevices: MediaDeviceInfo[];
   selectedDeviceId: string | null;
   error: string | null;
-  onStart: (deviceId?: string) => void;
+  onStart: (deviceId?: string) => void | Promise<void>;
   onStop: () => void;
   onSwitchDevice: (deviceId: string) => void;
 }
 
 export function AudioSetup({
   isListening,
+  isStarting = false,
   isPermissionGranted,
   inputLevel,
   availableDevices,
@@ -85,9 +87,10 @@ export function AudioSetup({
       <div style={{ display: "flex", gap: 12 }}>
         {!isListening ? (
           <FilledButton
-            label="Start Listening"
+            label={isStarting ? "Starting…" : "Start Listening"}
             icon="🎤"
             onClick={() => onStart()}
+            disabled={isStarting}
             style={{ flex: 1, justifyContent: "center" }}
           />
         ) : (

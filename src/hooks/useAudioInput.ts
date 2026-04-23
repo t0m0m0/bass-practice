@@ -15,6 +15,8 @@ export function useAudioInput() {
   });
 
   const levelAnimationRef = useRef<number>(0);
+  const startPromiseRef = useRef<Promise<void> | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
   const [clarityThreshold, setClarityThresholdState] = useState(0.85);
 
   const updateLevel = useCallback(() => {
@@ -27,31 +29,50 @@ export function useAudioInput() {
 
   const start = useCallback(
     async (deviceId?: string) => {
-      try {
-        const newEngine = new AudioEngine();
-        await newEngine.start(deviceId);
-        engineRef.current = newEngine;
-        setEngine(newEngine);
-
-        const devices = await AudioEngine.enumerateDevices();
-
-        setState((prev) => ({
-          ...prev,
-          isPermissionGranted: true,
-          isListening: true,
-          selectedDeviceId: deviceId ?? null,
-          availableDevices: devices,
-          error: null,
-        }));
-
-        levelAnimationRef.current = requestAnimationFrame(updateLevel);
-      } catch (err) {
-        setState((prev) => ({
-          ...prev,
-          error:
-            err instanceof Error ? err.message : "Failed to access microphone",
-        }));
+      if (engineRef.current?.isActive) {
+        setState((prev) => ({ ...prev, error: null }));
+        return;
       }
+
+      if (startPromiseRef.current) {
+        return startPromiseRef.current;
+      }
+
+      const startPromise = (async () => {
+        setIsStarting(true);
+        try {
+          const newEngine = new AudioEngine();
+          await newEngine.start(deviceId);
+          engineRef.current = newEngine;
+          setEngine(newEngine);
+
+          const devices = await AudioEngine.enumerateDevices();
+
+          setState((prev) => ({
+            ...prev,
+            isPermissionGranted: true,
+            isListening: true,
+            selectedDeviceId: deviceId ?? null,
+            availableDevices: devices,
+            error: null,
+          }));
+
+          levelAnimationRef.current = requestAnimationFrame(updateLevel);
+        } catch (err) {
+          setState((prev) => ({
+            ...prev,
+            error:
+              err instanceof Error ? err.message : "Failed to access microphone",
+          }));
+          throw err;
+        } finally {
+          startPromiseRef.current = null;
+          setIsStarting(false);
+        }
+      })();
+
+      startPromiseRef.current = startPromise;
+      return startPromise;
     },
     [updateLevel],
   );
@@ -60,7 +81,9 @@ export function useAudioInput() {
     cancelAnimationFrame(levelAnimationRef.current);
     await engineRef.current?.stop();
     engineRef.current = null;
+    startPromiseRef.current = null;
     setEngine(null);
+    setIsStarting(false);
     setState((prev) => ({
       ...prev,
       isListening: false,
@@ -79,6 +102,7 @@ export function useAudioInput() {
   useEffect(() => {
     return () => {
       cancelAnimationFrame(levelAnimationRef.current);
+      startPromiseRef.current = null;
       engineRef.current?.stop();
       engineRef.current = null;
       setEngine(null);
@@ -92,13 +116,26 @@ export function useAudioInput() {
     }
   }, []);
 
-  return useMemo(() => ({
-    ...state,
-    engine,
-    clarityThreshold,
-    setClarityThreshold,
-    start,
-    stop,
-    switchDevice,
-  }), [state, engine, clarityThreshold, setClarityThreshold, start, stop, switchDevice]);
+  return useMemo(
+    () => ({
+      ...state,
+      engine,
+      isStarting,
+      clarityThreshold,
+      setClarityThreshold,
+      start,
+      stop,
+      switchDevice,
+    }),
+    [
+      state,
+      engine,
+      isStarting,
+      clarityThreshold,
+      setClarityThreshold,
+      start,
+      stop,
+      switchDevice,
+    ],
+  );
 }
