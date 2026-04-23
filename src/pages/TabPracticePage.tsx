@@ -9,6 +9,7 @@ import { MetronomeControls } from "../components/practice/MetronomeControls";
 import { AutoBpmControls } from "../components/practice/AutoBpmControls";
 import { TimingFeedback } from "../components/practice/TimingFeedback";
 import { ComboDisplay } from "../components/practice/ComboDisplay";
+import { CountdownOverlay } from "../components/practice/CountdownOverlay";
 import { Tag } from "../components/md3";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import type { TabPreset } from "../types/practice";
@@ -247,6 +248,7 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
           />
         </>
       )}
+      <CountdownOverlay count={practice.countdown} />
     </div>
   );
 }

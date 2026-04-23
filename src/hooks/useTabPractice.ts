@@ -23,6 +23,17 @@ export interface PitchJudgeConfig {
   toleranceCents: number;
 }
 
+export interface TabPracticeOptions {
+  /**
+   * Number of count-in beats played before the metronome starts. Each beat
+   * lasts 1 second and ticks down `countdown` from N → 1. Set to 0 to
+   * disable the count-in (primarily used in tests to avoid real-time waits).
+   */
+  countdownSeconds?: number;
+}
+
+const DEFAULT_COUNTDOWN_SECONDS = 3;
+
 /** Window after an onset during which we keep sampling pitch for its best estimate. */
 const PITCH_SAMPLE_WINDOW_MS = 120;
 /** Ignore initial ms of the onset's attack where pitch detection is unstable. */
@@ -39,7 +50,9 @@ export function useTabPractice(
   preset: TabPreset,
   audioEngine: AudioEngine | null,
   pitchJudge: PitchJudgeConfig = { enabled: true, toleranceCents: 50 },
+  options: TabPracticeOptions = {},
 ) {
+  const countdownSeconds = options.countdownSeconds ?? DEFAULT_COUNTDOWN_SECONDS;
   const metronome = useMetronome(
     preset.bpm,
     preset.timeSignature.beatsPerMeasure,
@@ -61,6 +74,12 @@ export function useTabPractice(
   }, [metronome]);
 
   const [phase, setPhase] = useState<TabSessionPhase>("idle");
+  // Remaining count-in beats (N..1 during countdown, null otherwise).
+  // UI overlays read this to render "3 / 2 / 1" before playback begins.
+  const [countdown, setCountdown] = useState<number | null>(null);
+  // Flag set by stopSession() so an in-flight countdown loop can bail out
+  // instead of transitioning to "playing" after the user aborted.
+  const countdownAbortRef = useRef(false);
   const [timingEvents, setTimingEvents] = useState<TimingEvent[]>([]);
   // Events observed within the current loop only. Consumers that want a
   // per-loop visualisation (scatter, per-step highlight) should use this
@@ -324,7 +343,34 @@ export function useTabPractice(
     metronomeRef.current.initContext();
 
     setPhase("countdown");
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    countdownAbortRef.current = false;
+
+    // Count-in: tick down N → 1 at the session's beat interval, playing an
+    // audible click each beat so the player can lock in tempo before
+    // playback. Using 60000/bpm (instead of a fixed 1000ms) keeps the
+    // count-in musically continuous with the metronome that follows — at
+    // 120bpm a fixed 1s tick would feel half-time leading into playback.
+    //
+    // `countdownSeconds = 0` skips the wait entirely (used in tests).
+    // If stopSession() runs mid-countdown we bail out before touching state
+    // again so the session doesn't silently transition to "playing".
+    const beatIntervalMs = 60000 / metronomeRef.current.bpm;
+    try {
+      if (countdownSeconds > 0) {
+        for (let n = countdownSeconds; n >= 1; n--) {
+          if (countdownAbortRef.current) return;
+          setCountdown(n);
+          // Accent the final "1" so the player hears the downbeat cue
+          // right before playback starts. Matches the engine's API contract
+          // documented on playCountInClick().
+          metronomeRef.current.playCountInClick(n === 1);
+          await new Promise((resolve) => setTimeout(resolve, beatIntervalMs));
+        }
+      }
+      if (countdownAbortRef.current) return;
+    } finally {
+      setCountdown(null);
+    }
 
     try {
       await metronomeRef.current.start();
@@ -333,10 +379,13 @@ export function useTabPractice(
       throw err;
     }
     setPhase("playing");
-  }, []);
+  }, [countdownSeconds]);
 
   const stopSession = useCallback(async () => {
     cancelAnimationFrame(animFrameRef.current);
+    // Signal any in-flight count-in loop to bail out on its next tick.
+    countdownAbortRef.current = true;
+    setCountdown(null);
     await metronomeRef.current.stop();
 
     const misses = generateMisses(targetsRef.current, hitBeatsRef.current);
@@ -369,6 +418,7 @@ export function useTabPractice(
   return useMemo(
     () => ({
       phase,
+      countdown,
       currentBeat,
       loop,
       timingEvents,
@@ -383,6 +433,6 @@ export function useTabPractice(
       startSession,
       stopSession,
     }),
-    [phase, currentBeat, loop, timingEvents, currentLoopEvents, lastEvent, eventSeq, combo, maxCombo, stats, metronomeSlice, autoBpm, startSession, stopSession],
+    [phase, countdown, currentBeat, loop, timingEvents, currentLoopEvents, lastEvent, eventSeq, combo, maxCombo, stats, metronomeSlice, autoBpm, startSession, stopSession],
   );
 }

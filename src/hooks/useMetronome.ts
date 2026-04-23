@@ -75,6 +75,11 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
     return engineRef.current?.getCurrentTimeMs() ?? null;
   }, []);
 
+  /** Emit a single count-in click. Requires initContext() to have been called. */
+  const playCountInClick = useCallback((accent = false) => {
+    engineRef.current?.playCountInClick(accent);
+  }, []);
+
   useEffect(() => {
     return () => {
       void engineRef.current?.stop();
@@ -91,5 +96,6 @@ export function useMetronome(initialBpm: number, beatsPerMeasure: number, beatUn
     stop,
     onBeat,
     getCurrentTimeMs,
-  }), [isPlaying, bpm, setBpm, initContext, start, stop, onBeat, getCurrentTimeMs]);
+    playCountInClick,
+  }), [isPlaying, bpm, setBpm, initContext, start, stop, onBeat, getCurrentTimeMs, playCountInClick]);
 }
