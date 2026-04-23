@@ -72,6 +72,117 @@ describe("useAudioInput", () => {
   });
 
   describe("start()", () => {
+    it("start() 中は isStarting が true になる", async () => {
+      let resolveStart: (() => void) | undefined;
+      mocks.engineStart.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveStart = resolve;
+          }),
+      );
+
+      const { result } = renderHook(() => useAudioInput());
+      let pending: Promise<void> | undefined;
+
+      await act(async () => {
+        pending = result.current.start();
+      });
+
+      expect(result.current.isStarting).toBe(true);
+
+      await act(async () => {
+        resolveStart?.();
+        await pending;
+      });
+
+      expect(result.current.isStarting).toBe(false);
+    });
+
+    it("同時呼び出しでも AudioEngine.start() は 1 回だけ呼ばれる", async () => {
+      let resolveStart: (() => void) | undefined;
+      mocks.engineStart.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveStart = resolve;
+          }),
+      );
+
+      const { result } = renderHook(() => useAudioInput());
+      let first: Promise<void> | undefined;
+      let second: Promise<void> | undefined;
+
+      await act(async () => {
+        first = result.current.start();
+        second = result.current.start();
+      });
+
+      expect(mocks.engineStart).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        resolveStart?.();
+        await Promise.all([first, second]);
+      });
+    });
+
+    it("start() 途中に stop() されたら engine を最終的に起動しない", async () => {
+      let resolveStart: (() => void) | undefined;
+      mocks.engineStart.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveStart = resolve;
+          }),
+      );
+
+      const { result } = renderHook(() => useAudioInput());
+      let pending: Promise<void> | undefined;
+
+      await act(async () => {
+        pending = result.current.start();
+      });
+
+      await act(async () => {
+        await result.current.stop();
+      });
+
+      await act(async () => {
+        resolveStart?.();
+        await pending;
+      });
+
+      expect(result.current.isListening).toBe(false);
+      expect(result.current.engine).toBeNull();
+      // cancelled start で生成した engine は stop() されているはず
+      expect(mocks.engineStop).toHaveBeenCalled();
+    });
+
+    it("start() 途中に stop() されたらエラーを state に反映しない", async () => {
+      let rejectStart: ((err: Error) => void) | undefined;
+      mocks.engineStart.mockImplementation(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectStart = reject;
+          }),
+      );
+
+      const { result } = renderHook(() => useAudioInput());
+      let pending: Promise<void> | undefined;
+
+      await act(async () => {
+        pending = result.current.start();
+      });
+
+      await act(async () => {
+        await result.current.stop();
+      });
+
+      await act(async () => {
+        rejectStart?.(new Error("Permission denied"));
+        await pending?.catch(() => {});
+      });
+
+      expect(result.current.error).toBeNull();
+    });
+
     it("start() 後は isListening が true になる", async () => {
       const { result } = renderHook(() => useAudioInput());
       await act(async () => {
@@ -127,7 +238,7 @@ describe("useAudioInput", () => {
       mocks.engineStart.mockRejectedValue(new Error("Permission denied"));
       const { result } = renderHook(() => useAudioInput());
       await act(async () => {
-        await result.current.start();
+        await expect(result.current.start()).rejects.toThrow("Permission denied");
       });
       expect(result.current.error).toBe("Permission denied");
       expect(result.current.isListening).toBe(false);
@@ -137,7 +248,7 @@ describe("useAudioInput", () => {
       mocks.engineStart.mockRejectedValue("unexpected");
       const { result } = renderHook(() => useAudioInput());
       await act(async () => {
-        await result.current.start();
+        await expect(result.current.start()).rejects.toBe("unexpected");
       });
       expect(result.current.error).toBe("Failed to access microphone");
     });

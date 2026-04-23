@@ -41,6 +41,7 @@ export function TunerPage() {
           >
             <AudioSetup
               isListening={audio.isListening}
+              isStarting={audio.isStarting}
               isPermissionGranted={audio.isPermissionGranted}
               inputLevel={audio.inputLevel}
               availableDevices={audio.availableDevices}
@@ -61,6 +62,7 @@ export function TunerPage() {
           <PitchDisplay pitch={audio.isListening ? pitch : null} />
           <AudioSetup
             isListening={audio.isListening}
+            isStarting={audio.isStarting}
             isPermissionGranted={audio.isPermissionGranted}
             inputLevel={audio.inputLevel}
             availableDevices={audio.availableDevices}

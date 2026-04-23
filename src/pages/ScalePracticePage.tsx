@@ -242,6 +242,7 @@ export function ScalePracticePage() {
 
       <AudioSetup
         isListening={audio.isListening}
+        isStarting={audio.isStarting}
         isPermissionGranted={audio.isPermissionGranted}
         inputLevel={audio.inputLevel}
         availableDevices={audio.availableDevices}

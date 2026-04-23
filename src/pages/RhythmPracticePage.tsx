@@ -54,20 +54,26 @@ function RhythmPracticeContent({
 }: ContentProps) {
   const practice = useTabPractice(preset, audio.engine);
   const [startError, setStartError] = useState<string | null>(null);
+  const [isStartPending, setIsStartPending] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const handleStart = async () => {
     setStartError(null);
-    if (!audio.isListening) audio.start().catch(() => {});
+    setIsStartPending(true);
+
     try {
+      if (!audio.isListening) {
+        await audio.start();
+      }
       await practice.startSession();
     } catch (err) {
       setStartError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsStartPending(false);
     }
   };
 
-  const displayedError = startError;
-  const micWarning = !startError && audio.error ? audio.error : null;
+  const displayedError = startError ?? audio.error;
 
   const errorBlock = (
     <>
@@ -84,20 +90,6 @@ function RhythmPracticeContent({
           }}
         >
           {displayedError}
-        </div>
-      )}
-      {micWarning && (
-        <div
-          style={{
-            background: "#f9a8251a",
-            border: "1px solid #f9a82566",
-            color: "#f9a825",
-            borderRadius: 12,
-            padding: "12px 16px",
-            font: "400 13px/1.5 Roboto, sans-serif",
-          }}
-        >
-          🎤 マイクが利用できません（メトロノームは動作します）: {micWarning}
         </div>
       )}
     </>
@@ -198,6 +190,7 @@ function RhythmPracticeContent({
               bpm={practice.metronome.bpm}
               isPlaying={practice.metronome.isPlaying}
               phase={practice.phase}
+              isStartPending={isStartPending || audio.isStarting}
               onBpmChange={practice.metronome.setBpm}
               onStart={handleStart}
               onStop={practice.stopSession}
@@ -218,6 +211,7 @@ function RhythmPracticeContent({
             bpm={practice.metronome.bpm}
             isPlaying={practice.metronome.isPlaying}
             phase={practice.phase}
+            isStartPending={isStartPending || audio.isStarting}
             onBpmChange={practice.metronome.setBpm}
             onStart={handleStart}
             onStop={practice.stopSession}

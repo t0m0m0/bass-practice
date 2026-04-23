@@ -6,6 +6,7 @@ interface MetronomeControlsProps {
   bpm: number;
   isPlaying: boolean;
   phase: TabSessionPhase;
+  isStartPending?: boolean;
   onBpmChange: (bpm: number) => void;
   onStart: () => void;
   onStop: () => void;
@@ -14,6 +15,7 @@ interface MetronomeControlsProps {
 export function MetronomeControls({
   bpm,
   phase,
+  isStartPending = false,
   onBpmChange,
   onStart,
   onStop,
@@ -126,7 +128,7 @@ export function MetronomeControls({
         </span>
       </div>
 
-      {phase === "countdown" && (
+      {(phase === "countdown" || isStartPending) && (
         <div
           style={{
             textAlign: "center",
@@ -136,16 +138,17 @@ export function MetronomeControls({
             marginBottom: 12,
           }}
         >
-          ♩ 準備して…
+          {isStartPending ? "🎤 マイクを起動しています…" : "♩ 準備して…"}
         </div>
       )}
 
       <div style={{ display: "flex", gap: 12 }}>
         {phase === "idle" || phase === "finished" ? (
           <FilledButton
-            label={phase === "finished" ? "Restart" : "Start"}
+            label={isStartPending ? "Starting…" : phase === "finished" ? "Restart" : "Start"}
             icon={phase === "finished" ? "↺" : "▶"}
             onClick={onStart}
+            disabled={isStartPending}
             style={{ flex: 1, justifyContent: "center" }}
           />
         ) : (

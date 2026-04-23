@@ -65,6 +65,11 @@ describe("AudioSetup", () => {
       expect(onStart).toHaveBeenCalledOnce();
     });
 
+    it("起動中は Starting… を表示して Start ボタンを無効化する", () => {
+      render(<AudioSetup {...defaultProps} isStarting />);
+      expect(screen.getByRole("button", { name: "Starting…" })).toBeDisabled();
+    });
+
     it("「Stop」クリックで onStop() が呼ばれる", () => {
       const onStop = vi.fn();
       render(<AudioSetup {...defaultProps} isListening onStop={onStop} />);

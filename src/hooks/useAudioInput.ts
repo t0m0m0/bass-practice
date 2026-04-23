@@ -15,6 +15,9 @@ export function useAudioInput() {
   });
 
   const levelAnimationRef = useRef<number>(0);
+  const startPromiseRef = useRef<Promise<void> | null>(null);
+  const startTokenRef = useRef<{ cancelled: boolean } | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
   const [clarityThreshold, setClarityThresholdState] = useState(0.85);
 
   const updateLevel = useCallback(() => {
@@ -27,40 +30,83 @@ export function useAudioInput() {
 
   const start = useCallback(
     async (deviceId?: string) => {
-      try {
-        const newEngine = new AudioEngine();
-        await newEngine.start(deviceId);
-        engineRef.current = newEngine;
-        setEngine(newEngine);
-
-        const devices = await AudioEngine.enumerateDevices();
-
-        setState((prev) => ({
-          ...prev,
-          isPermissionGranted: true,
-          isListening: true,
-          selectedDeviceId: deviceId ?? null,
-          availableDevices: devices,
-          error: null,
-        }));
-
-        levelAnimationRef.current = requestAnimationFrame(updateLevel);
-      } catch (err) {
-        setState((prev) => ({
-          ...prev,
-          error:
-            err instanceof Error ? err.message : "Failed to access microphone",
-        }));
+      if (engineRef.current?.isActive) {
+        setState((prev) => ({ ...prev, error: null }));
+        return;
       }
+
+      if (startPromiseRef.current) {
+        return startPromiseRef.current;
+      }
+
+      const token = { cancelled: false };
+      startTokenRef.current = token;
+
+      const startPromise = (async () => {
+        setIsStarting(true);
+        try {
+          const newEngine = new AudioEngine();
+          await newEngine.start(deviceId);
+
+          // If stop() was called while awaiting mic permission, discard this engine.
+          if (token.cancelled) {
+            await newEngine.stop();
+            return;
+          }
+          engineRef.current = newEngine;
+          setEngine(newEngine);
+
+          const devices = await AudioEngine.enumerateDevices();
+          if (token.cancelled) return;
+
+          setState((prev) => ({
+            ...prev,
+            isPermissionGranted: true,
+            isListening: true,
+            selectedDeviceId: deviceId ?? null,
+            availableDevices: devices,
+            error: null,
+          }));
+
+          levelAnimationRef.current = requestAnimationFrame(updateLevel);
+        } catch (err) {
+          if (!token.cancelled) {
+            setState((prev) => ({
+              ...prev,
+              error:
+                err instanceof Error
+                  ? err.message
+                  : "Failed to access microphone",
+            }));
+          }
+          throw err;
+        } finally {
+          startPromiseRef.current = null;
+          if (startTokenRef.current === token) {
+            startTokenRef.current = null;
+          }
+          setIsStarting(false);
+        }
+      })();
+
+      startPromiseRef.current = startPromise;
+      return startPromise;
     },
     [updateLevel],
   );
 
   const stop = useCallback(async () => {
     cancelAnimationFrame(levelAnimationRef.current);
+    // Cancel any in-flight start() so it won't resurrect engine state.
+    if (startTokenRef.current) {
+      startTokenRef.current.cancelled = true;
+      startTokenRef.current = null;
+    }
     await engineRef.current?.stop();
     engineRef.current = null;
+    startPromiseRef.current = null;
     setEngine(null);
+    setIsStarting(false);
     setState((prev) => ({
       ...prev,
       isListening: false,
@@ -79,6 +125,11 @@ export function useAudioInput() {
   useEffect(() => {
     return () => {
       cancelAnimationFrame(levelAnimationRef.current);
+      if (startTokenRef.current) {
+        startTokenRef.current.cancelled = true;
+        startTokenRef.current = null;
+      }
+      startPromiseRef.current = null;
       engineRef.current?.stop();
       engineRef.current = null;
       setEngine(null);
@@ -92,13 +143,26 @@ export function useAudioInput() {
     }
   }, []);
 
-  return useMemo(() => ({
-    ...state,
-    engine,
-    clarityThreshold,
-    setClarityThreshold,
-    start,
-    stop,
-    switchDevice,
-  }), [state, engine, clarityThreshold, setClarityThreshold, start, stop, switchDevice]);
+  return useMemo(
+    () => ({
+      ...state,
+      engine,
+      isStarting,
+      clarityThreshold,
+      setClarityThreshold,
+      start,
+      stop,
+      switchDevice,
+    }),
+    [
+      state,
+      engine,
+      isStarting,
+      clarityThreshold,
+      setClarityThreshold,
+      start,
+      stop,
+      switchDevice,
+    ],
+  );
 }
