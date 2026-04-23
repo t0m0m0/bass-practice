@@ -18,10 +18,13 @@ describe("buildTimingTargets", () => {
   it("creates targets for each unique beat", () => {
     const targets = buildTimingTargets(sampleNotes, 120, 0);
     expect(targets).toHaveLength(4);
-    expect(targets[0]).toEqual({ beat: 0, timeMs: 0 });
-    expect(targets[1]).toEqual({ beat: 1, timeMs: 500 }); // 60/120*1000 = 500ms per beat
-    expect(targets[2]).toEqual({ beat: 2, timeMs: 1000 });
-    expect(targets[3]).toEqual({ beat: 3, timeMs: 1500 });
+    expect(targets[0].beat).toBe(0);
+    expect(targets[0].timeMs).toBe(0);
+    expect(targets[1].beat).toBe(1);
+    expect(targets[1].timeMs).toBe(500); // 60/120*1000 = 500ms per beat
+    expect(targets[2].timeMs).toBe(1000);
+    expect(targets[3].timeMs).toBe(1500);
+    expect(targets[0].expectedFrequencies.length).toBeGreaterThan(0);
   });
 
   it("applies start time offset", () => {
@@ -81,8 +84,8 @@ describe("evaluateOnset", () => {
 
   it("selects the next valid target when the closest is already hit", () => {
     const closeTargets = [
-      { beat: 0, timeMs: 100 },
-      { beat: 1, timeMs: 150 },
+      { beat: 0, timeMs: 100, expectedFrequencies: [] },
+      { beat: 1, timeMs: 150, expectedFrequencies: [] },
     ];
     const event = evaluateOnset(110, closeTargets, new Set([0]));
     expect(event).not.toBeNull();
@@ -136,10 +139,16 @@ describe("generateMisses", () => {
 });
 
 describe("computeStats", () => {
+  const hitBase = {
+    expectedFrequency: null,
+    detectedFrequency: null,
+    pitchCents: null,
+  };
+
   it("computes hit rate and avg absolute delta", () => {
     const events: import("../../types/practice").TimingEvent[] = [
-      { targetBeat: 0, targetTimeMs: 0, onsetTimeMs: 10, deltaMs: 10, judgment: "hit" as const },
-      { targetBeat: 1, targetTimeMs: 500, onsetTimeMs: 460, deltaMs: -40, judgment: "early" as const },
+      { targetBeat: 0, targetTimeMs: 0, onsetTimeMs: 10, deltaMs: 10, judgment: "hit" as const, ...hitBase },
+      { targetBeat: 1, targetTimeMs: 500, onsetTimeMs: 460, deltaMs: -40, judgment: "early" as const, ...hitBase },
       { targetBeat: 2, targetTimeMs: 1000, onsetTimeMs: null, deltaMs: null, judgment: "miss" as const },
     ];
     const stats = computeStats(events);
@@ -160,5 +169,67 @@ describe("computeStats", () => {
     const stats = computeStats(events);
     expect(stats.hitRate).toBe(0);
     expect(stats.avgAbsDeltaMs).toBe(0);
+  });
+
+  it("excludes early/late events from pitch accuracy even if pitchCents is present", () => {
+    // Regression: defense-in-depth. Even if an early/late event somehow
+    // carries pitchCents (e.g. future refactor), it must not affect
+    // pitchAccuracy — the stat means "タイミング正解の中での音程正解率".
+    const events: import("../../types/practice").TimingEvent[] = [
+      {
+        targetBeat: 0,
+        targetTimeMs: 0,
+        onsetTimeMs: 5,
+        deltaMs: 5,
+        judgment: "perfect" as const,
+        expectedFrequency: 110,
+        detectedFrequency: 110,
+        pitchCents: 0,
+      },
+      {
+        // early with pitchCents populated — should be ignored by pitch stats
+        targetBeat: 1,
+        targetTimeMs: 500,
+        onsetTimeMs: 450,
+        deltaMs: -50,
+        judgment: "early" as const,
+        expectedFrequency: 110,
+        detectedFrequency: 200,
+        pitchCents: 500,
+      },
+    ];
+    const stats = computeStats(events);
+    expect(stats.pitchJudgedCount).toBe(1);
+    expect(stats.pitchAccuracy).toBe(1);
+    expect(stats.avgAbsCents).toBe(0);
+  });
+
+  it("computes pitch accuracy from perfect vs timing-only", () => {
+    const events: import("../../types/practice").TimingEvent[] = [
+      {
+        targetBeat: 0,
+        targetTimeMs: 0,
+        onsetTimeMs: 5,
+        deltaMs: 5,
+        judgment: "perfect" as const,
+        expectedFrequency: 110,
+        detectedFrequency: 110,
+        pitchCents: 0,
+      },
+      {
+        targetBeat: 1,
+        targetTimeMs: 500,
+        onsetTimeMs: 505,
+        deltaMs: 5,
+        judgment: "timing-only" as const,
+        expectedFrequency: 110,
+        detectedFrequency: 116,
+        pitchCents: 80,
+      },
+    ];
+    const stats = computeStats(events);
+    expect(stats.pitchJudgedCount).toBe(2);
+    expect(stats.pitchAccuracy).toBeCloseTo(0.5);
+    expect(stats.avgAbsCents).toBe(40); // (0 + 80) / 2
   });
 });

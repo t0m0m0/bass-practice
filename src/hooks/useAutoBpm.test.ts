@@ -10,6 +10,9 @@ function makeHit(beat: number, deltaMs = 10): HitTimingEvent {
     onsetTimeMs: beat * 500 + deltaMs,
     deltaMs,
     judgment: "hit",
+    expectedFrequency: null,
+    detectedFrequency: null,
+    pitchCents: null,
   };
 }
 

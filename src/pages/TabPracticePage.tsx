@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { tabPresets } from "../data/tabPresets";
 import { useCustomTabs } from "../hooks/useCustomTabs";
@@ -55,7 +55,13 @@ interface TabPracticeContentProps {
 
 function TabPracticeContent({ preset }: TabPracticeContentProps) {
   const audio = useAudioInput();
-  const practice = useTabPractice(preset, audio.engine);
+  const [pitchJudgeEnabled, setPitchJudgeEnabled] = useState(true);
+  const [toleranceCents, setToleranceCents] = useState(50);
+  const pitchJudge = useMemo(
+    () => ({ enabled: pitchJudgeEnabled, toleranceCents }),
+    [pitchJudgeEnabled, toleranceCents],
+  );
+  const practice = useTabPractice(preset, audio.engine, pitchJudge);
   const [startError, setStartError] = useState<string | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
@@ -186,6 +192,12 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
               onStop={practice.stopSession}
             />
             {autoBpmBlock}
+            <PitchJudgeToggle
+              enabled={pitchJudgeEnabled}
+              toleranceCents={toleranceCents}
+              onEnabledChange={setPitchJudgeEnabled}
+              onToleranceChange={setToleranceCents}
+            />
             {errorBlock}
           </div>
           <TimingFeedback
@@ -207,6 +219,12 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
             onStop={practice.stopSession}
           />
           {autoBpmBlock}
+          <PitchJudgeToggle
+            enabled={pitchJudgeEnabled}
+            toleranceCents={toleranceCents}
+            onEnabledChange={setPitchJudgeEnabled}
+            onToleranceChange={setToleranceCents}
+          />
           {errorBlock}
           <TimingFeedback
             lastEvent={practice.lastEvent}
@@ -216,6 +234,76 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
             loop={practice.loop}
           />
         </>
+      )}
+    </div>
+  );
+}
+
+interface PitchJudgeToggleProps {
+  enabled: boolean;
+  toleranceCents: number;
+  onEnabledChange: (v: boolean) => void;
+  onToleranceChange: (v: number) => void;
+}
+
+function PitchJudgeToggle({
+  enabled,
+  toleranceCents,
+  onEnabledChange,
+  onToleranceChange,
+}: PitchJudgeToggleProps) {
+  return (
+    <div
+      style={{
+        background: "var(--md-surface-container)",
+        borderRadius: 12,
+        padding: "12px 16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          font: "500 14px/1.4 Roboto, sans-serif",
+          color: "var(--md-on-surface)",
+          cursor: "pointer",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => onEnabledChange(e.target.checked)}
+        />
+        音程の正確さを判定
+      </label>
+      {enabled && (
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            font: "400 13px/1.4 Roboto, sans-serif",
+            color: "var(--md-on-surface-variant)",
+          }}
+        >
+          <span style={{ minWidth: 80 }}>許容幅</span>
+          <input
+            type="range"
+            min={10}
+            max={100}
+            step={5}
+            value={toleranceCents}
+            onChange={(e) => onToleranceChange(Number(e.target.value))}
+            style={{ flex: 1 }}
+          />
+          <span style={{ minWidth: 48, textAlign: "right" }}>
+            ±{toleranceCents}¢
+          </span>
+        </label>
       )}
     </div>
   );

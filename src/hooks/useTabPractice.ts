@@ -1,5 +1,10 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import type { TabPreset, TimingEvent, TabSessionPhase } from "../types/practice";
+import type {
+  TabPreset,
+  TimingEvent,
+  TabSessionPhase,
+  HitTimingEvent,
+} from "../types/practice";
 import type { AudioEngine } from "../lib/audio/AudioEngine";
 import { OnsetDetector } from "../lib/audio/onsetDetector";
 import {
@@ -9,10 +14,32 @@ import {
   computeStats,
 } from "../lib/practice/timingEvaluator";
 import type { TimingTarget } from "../lib/practice/timingEvaluator";
+import { judgePitch } from "../lib/practice/pitchEvaluator";
 import { useMetronome } from "./useMetronome";
 import { useAutoBpm } from "./useAutoBpm";
 
-export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | null) {
+export interface PitchJudgeConfig {
+  enabled: boolean;
+  toleranceCents: number;
+}
+
+/** Window after an onset during which we keep sampling pitch for its best estimate. */
+const PITCH_SAMPLE_WINDOW_MS = 120;
+/** Ignore initial ms of the onset's attack where pitch detection is unstable. */
+const PITCH_ATTACK_SKIP_MS = 20;
+
+interface PendingPitchSample {
+  event: HitTimingEvent;
+  onsetTimeMs: number;
+  bestFrequency: number | null;
+  bestClarity: number;
+}
+
+export function useTabPractice(
+  preset: TabPreset,
+  audioEngine: AudioEngine | null,
+  pitchJudge: PitchJudgeConfig = { enabled: true, toleranceCents: 50 },
+) {
   const metronome = useMetronome(
     preset.bpm,
     preset.timeSignature.beatsPerMeasure,
@@ -50,6 +77,44 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
   const allEventsRef = useRef<TimingEvent[]>([]);
   const loopEventsRef = useRef<TimingEvent[]>([]);
   const phaseRef = useRef<TabSessionPhase>("idle");
+  const pendingPitchRef = useRef<PendingPitchSample[]>([]);
+  const pitchJudgeRef = useRef(pitchJudge);
+
+  // Replace a pending hit event with one that now carries pitch info.
+  // Stored in a ref so the RAF loop always invokes the latest closure
+  // (accessing up-to-date state setters) without extra dependencies.
+  const finalizePitchSampleRef = useRef<(s: PendingPitchSample) => void>(
+    () => {},
+  );
+  useEffect(() => {
+    finalizePitchSampleRef.current = (sample: PendingPitchSample) => {
+      const cfg = pitchJudgeRef.current;
+      const result = judgePitch(
+        sample.bestFrequency,
+        sample.event.expectedFrequency,
+        cfg.toleranceCents,
+      );
+
+      // If original already escalated to early/late, keep that judgment;
+      // only "hit" (on-time) is split into perfect / timing-only.
+      const updated: HitTimingEvent = { ...sample.event };
+      updated.detectedFrequency = sample.bestFrequency;
+      updated.pitchCents = result?.pitchCents ?? null;
+      if (sample.event.judgment === "hit" && result != null) {
+        updated.judgment = result.correct ? "perfect" : "timing-only";
+      }
+
+      const replace = (e: TimingEvent) => (e === sample.event ? updated : e);
+      allEventsRef.current = allEventsRef.current.map(replace);
+      loopEventsRef.current = loopEventsRef.current.map(replace);
+      setTimingEvents((prev) => prev.map(replace));
+      setCurrentLoopEvents((prev) => prev.map(replace));
+      setLastEvent((prev) => (prev === sample.event ? updated : prev));
+    };
+  });
+  useEffect(() => {
+    pitchJudgeRef.current = pitchJudge;
+  }, [pitchJudge]);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -90,7 +155,51 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
           setTimingEvents((prev) => [...prev, event]);
           setCurrentLoopEvents((prev) => [...prev, event]);
           setLastEvent(event);
+
+          // Queue for post-onset pitch sampling. Pitch right at the attack
+          // is noisy, so we skip the first few ms and keep the highest-clarity
+          // result across the sampling window.
+          // Only "hit" (on-time) is eligible for pitch evaluation; early/late
+          // are excluded so pitchAccuracy stats stay consistent with the
+          // "成功判定の中での音程精度" semantics (see PR #52 comment).
+          if (
+            pitchJudgeRef.current.enabled &&
+            event.expectedFrequency != null &&
+            event.judgment === "hit"
+          ) {
+            pendingPitchRef.current = [
+              ...pendingPitchRef.current,
+              {
+                event,
+                onsetTimeMs: timeMs,
+                bestFrequency: null,
+                bestClarity: 0,
+              },
+            ];
+          }
         }
+      }
+
+      // Process pending pitch samples: update best candidate and finalize
+      // when the sampling window has elapsed.
+      if (pendingPitchRef.current.length > 0) {
+        const remaining: PendingPitchSample[] = [];
+        for (const sample of pendingPitchRef.current) {
+          const elapsed = timeMs - sample.onsetTimeMs;
+          if (elapsed >= PITCH_ATTACK_SKIP_MS && elapsed < PITCH_SAMPLE_WINDOW_MS) {
+            const p = audioEngine.detectPitch();
+            if (p.detected && p.clarity > sample.bestClarity) {
+              sample.bestClarity = p.clarity;
+              sample.bestFrequency = p.frequency;
+            }
+          }
+          if (elapsed >= PITCH_SAMPLE_WINDOW_MS) {
+            finalizePitchSampleRef.current(sample);
+          } else {
+            remaining.push(sample);
+          }
+        }
+        pendingPitchRef.current = remaining;
       }
 
       animFrameRef.current = requestAnimationFrame(() =>
@@ -165,6 +274,7 @@ export function useTabPractice(preset: TabPreset, audioEngine: AudioEngine | nul
     loopEventsRef.current = [];
     hitBeatsRef.current = new Set();
     targetsRef.current = [];
+    pendingPitchRef.current = [];
     onsetDetectorRef.current.reset();
     autoBpmRef.current.resetSession(metronomeRef.current.bpm);
 
