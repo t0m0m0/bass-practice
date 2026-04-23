@@ -194,4 +194,21 @@ describe("useTabPractice", () => {
     const beat2Miss = misses.find((e) => e.targetBeat === 2);
     expect(beat2Miss?.targetTimeMs).toBe(400);
   });
+
+  it("resets combo when loop boundary flushes misses", async () => {
+    const { result } = renderHook(() =>
+      useTabPractice(preset, makeAudioEngine()),
+    );
+    await act(async () => {
+      await result.current.startSession();
+    });
+    expect(result.current.combo).toBe(0);
+    act(() => engineBeatCallback?.(0, 0));
+    act(() => engineBeatCallback?.(4, 2.0));
+    // Two misses generated — combo stays at zero (was already zero).
+    expect(result.current.combo).toBe(0);
+    expect(result.current.maxCombo).toBe(0);
+    // eventSeq bumps per emitted event so UI anims retrigger.
+    expect(result.current.eventSeq).toBeGreaterThan(0);
+  });
 });

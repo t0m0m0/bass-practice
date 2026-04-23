@@ -8,6 +8,7 @@ import { AsciiTabDisplay } from "../components/practice/AsciiTabDisplay";
 import { MetronomeControls } from "../components/practice/MetronomeControls";
 import { AutoBpmControls } from "../components/practice/AutoBpmControls";
 import { TimingFeedback } from "../components/practice/TimingFeedback";
+import { ComboDisplay } from "../components/practice/ComboDisplay";
 import { Tag } from "../components/md3";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import type { TabPreset } from "../types/practice";
@@ -166,12 +167,19 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
         </div>
       </div>
 
-      <AsciiTabDisplay
-        preset={preset}
-        currentBeat={practice.currentBeat}
-        isPlaying={practice.phase === "playing"}
-        beatWidth={isDesktop ? 64 : 48}
-      />
+      <div style={{ position: "relative" }}>
+        <AsciiTabDisplay
+          preset={preset}
+          currentBeat={practice.currentBeat}
+          isPlaying={practice.phase === "playing"}
+          beatWidth={isDesktop ? 64 : 48}
+          lastEvent={practice.lastEvent}
+          eventSeq={practice.eventSeq}
+        />
+        {practice.phase === "playing" && (
+          <ComboDisplay combo={practice.combo} seq={practice.eventSeq} />
+        )}
+      </div>
 
       {isDesktop ? (
         <div
@@ -202,10 +210,12 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
           </div>
           <TimingFeedback
             lastEvent={practice.lastEvent}
+            eventSeq={practice.eventSeq}
             stats={practice.stats}
             phase={practice.phase}
             timingEvents={practice.timingEvents}
             loop={practice.loop}
+            maxCombo={practice.maxCombo}
           />
         </div>
       ) : (
@@ -228,10 +238,12 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
           {errorBlock}
           <TimingFeedback
             lastEvent={practice.lastEvent}
+            eventSeq={practice.eventSeq}
             stats={practice.stats}
             phase={practice.phase}
             timingEvents={practice.timingEvents}
             loop={practice.loop}
+            maxCombo={practice.maxCombo}
           />
         </>
       )}

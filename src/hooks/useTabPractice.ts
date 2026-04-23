@@ -69,6 +69,12 @@ export function useTabPractice(
   const [currentBeat, setCurrentBeat] = useState(-1);
   const [loop, setLoop] = useState(0);
   const [lastEvent, setLastEvent] = useState<TimingEvent | null>(null);
+  const [combo, setCombo] = useState(0);
+  const [maxCombo, setMaxCombo] = useState(0);
+  // Monotonic counter bumped on every judged event. Consumers (animations,
+  // combo popups) can key on this to retrigger effects even when the same
+  // judgment repeats in a row.
+  const [eventSeq, setEventSeq] = useState(0);
 
   const onsetDetectorRef = useRef(new OnsetDetector());
   const targetsRef = useRef<TimingTarget[]>([]);
@@ -155,6 +161,18 @@ export function useTabPractice(
           setTimingEvents((prev) => [...prev, event]);
           setCurrentLoopEvents((prev) => [...prev, event]);
           setLastEvent(event);
+          setEventSeq((n) => n + 1);
+          // Combo: only clean on-time hits (hit→may become perfect/timing-only)
+          // keep the streak alive. Early/late break it immediately.
+          if (event.judgment === "hit") {
+            setCombo((c) => {
+              const next = c + 1;
+              setMaxCombo((m) => (next > m ? next : m));
+              return next;
+            });
+          } else {
+            setCombo(0);
+          }
 
           // Queue for post-onset pitch sampling. Pitch right at the attack
           // is noisy, so we skip the first few ms and keep the highest-clarity
@@ -232,6 +250,8 @@ export function useTabPractice(
             loopEventsRef.current = [...loopEventsRef.current, ...misses];
             setTimingEvents((prev) => [...prev, ...misses]);
             setCurrentLoopEvents((prev) => [...prev, ...misses]);
+            setCombo(0);
+            setEventSeq((n) => n + misses.length);
           }
 
           // Evaluate auto-BPM at loop boundary. Pass the freshly-observed
@@ -270,6 +290,9 @@ export function useTabPractice(
     setCurrentBeat(-1);
     setLoop(0);
     setLastEvent(null);
+    setCombo(0);
+    setMaxCombo(0);
+    setEventSeq(0);
     allEventsRef.current = [];
     loopEventsRef.current = [];
     hitBeatsRef.current = new Set();
@@ -333,12 +356,15 @@ export function useTabPractice(
       timingEvents,
       currentLoopEvents,
       lastEvent,
+      eventSeq,
+      combo,
+      maxCombo,
       stats,
       metronome: metronomeSlice,
       autoBpm,
       startSession,
       stopSession,
     }),
-    [phase, currentBeat, loop, timingEvents, currentLoopEvents, lastEvent, stats, metronomeSlice, autoBpm, startSession, stopSession],
+    [phase, currentBeat, loop, timingEvents, currentLoopEvents, lastEvent, eventSeq, combo, maxCombo, stats, metronomeSlice, autoBpm, startSession, stopSession],
   );
 }

@@ -95,4 +95,8 @@ export interface TabSessionState {
   earlyCount: number;
   lateCount: number;
   avgAbsDeltaMs: number;
+  /** Current consecutive hit streak (hit/perfect/timing-only). Breaks on miss/early/late. */
+  combo: number;
+  /** Best combo reached during session. */
+  maxCombo: number;
 }
