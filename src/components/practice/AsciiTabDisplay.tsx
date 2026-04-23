@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { TabPreset, TabNote } from "../../types/practice";
+import type { TabPreset, TabNote, TimingEvent } from "../../types/practice";
 import { Card } from "../md3";
 
 interface AsciiTabDisplayProps {
@@ -7,6 +7,31 @@ interface AsciiTabDisplayProps {
   currentBeat: number;
   isPlaying: boolean;
   beatWidth?: number;
+  /** Last judged timing event — drives per-note hit/miss animations. */
+  lastEvent?: TimingEvent | null;
+  /** Monotonic bump so the same judgment retriggers animations. */
+  eventSeq?: number;
+}
+
+/** Color per judgment for tab-position effects. */
+function judgmentColor(j: TimingEvent["judgment"]): string {
+  switch (j) {
+    case "perfect":
+      return "#66ffcc";
+    case "hit":
+    case "timing-only":
+      return "#4ecdc4";
+    case "early":
+    case "late":
+      return "#f9a825";
+    case "miss":
+      return "#ef5350";
+    default: {
+      // Exhaustiveness guard — fails at type-check if a new judgment is added.
+      const _exhaustive: never = j;
+      return _exhaustive;
+    }
+  }
 }
 
 const STRING_LABELS = ["G", "D", "A", "E"];
@@ -21,6 +46,8 @@ export function AsciiTabDisplay({
   currentBeat,
   isPlaying,
   beatWidth = DEFAULT_BEAT_W,
+  lastEvent = null,
+  eventSeq = 0,
 }: AsciiTabDisplayProps) {
   const BEAT_W = beatWidth;
   const totalBeats = preset.timeSignature.beatsPerMeasure * preset.measures;
@@ -35,6 +62,23 @@ export function AsciiTabDisplay({
     }
     return map;
   }, [preset.notes]);
+
+  // Next upcoming note beat (≥ currentBeat) — highlighted with a soft
+  // pulsing glow so the player knows what’s next.
+  const nextBeat = useMemo(() => {
+    if (!isPlaying || currentBeat < 0) return null;
+    const beats = [...new Set(preset.notes.map((n) => n.beat))].sort(
+      (a, b) => a - b,
+    );
+    return beats.find((b) => b > currentBeat) ?? null;
+  }, [preset.notes, currentBeat, isPlaying]);
+
+  // The beat/judgment pair most recently evaluated. We use eventSeq as the
+  // React key on hit/miss overlays so repeated judgments retrigger CSS anims.
+  const lastHitBeat =
+    lastEvent && lastEvent.judgment !== "miss" ? lastEvent.targetBeat : null;
+  const lastMissBeat =
+    lastEvent && lastEvent.judgment === "miss" ? lastEvent.targetBeat : null;
 
   useEffect(() => {
     if (!isPlaying || currentBeat < 0 || !scrollRef.current) return;
@@ -158,10 +202,32 @@ export function AsciiTabDisplay({
                   if (!note) return null;
                   const cx = LABEL_W + beat * BEAT_W + BEAT_W / 2;
                   const isCurrent = isPlaying && beat === currentBeat;
+                  const isNext = isPlaying && beat === nextBeat;
+                  const isHitTarget = lastHitBeat === beat;
+                  const isMissTarget = lastMissBeat === beat;
+                  const hitColor =
+                    isHitTarget && lastEvent
+                      ? judgmentColor(lastEvent.judgment)
+                      : null;
                   const r = isCurrent ? 18 : 15;
 
                   return (
                     <g key={beat}>
+                      {isNext && !isCurrent && (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={20}
+                          fill="none"
+                          stroke="var(--md-primary)"
+                          strokeWidth={1.5}
+                          className="next-note-glow-anim"
+                          style={{
+                            animation:
+                              "next-note-glow 1.4s ease-in-out infinite",
+                          }}
+                        />
+                      )}
                       {isCurrent && (
                         <circle
                           cx={cx}
@@ -169,6 +235,60 @@ export function AsciiTabDisplay({
                           r={22}
                           fill="var(--md-primary)"
                           opacity={0.18}
+                        />
+                      )}
+                      {/* Expanding ring on hit. keyed by eventSeq so repeats animate. */}
+                      {isHitTarget && hitColor && (
+                        <circle
+                          key={`hit-${eventSeq}`}
+                          cx={cx}
+                          cy={cy}
+                          r={18}
+                          fill="none"
+                          stroke={hitColor}
+                          strokeWidth={2}
+                          className="hit-pulse-anim"
+                          style={{
+                            transformOrigin: `${cx}px ${cy}px`,
+                            animation: "hit-pulse 0.55s ease-out forwards",
+                          }}
+                        />
+                      )}
+                      {/* Early / late directional arrow. */}
+                      {isHitTarget &&
+                        lastEvent &&
+                        (lastEvent.judgment === "early" ||
+                          lastEvent.judgment === "late") && (
+                          <polygon
+                            key={`arrow-${eventSeq}`}
+                            points={
+                              lastEvent.judgment === "early"
+                                ? `${cx - 32},${cy} ${cx - 24},${cy - 6} ${cx - 24},${cy + 6}`
+                                : `${cx + 32},${cy} ${cx + 24},${cy - 6} ${cx + 24},${cy + 6}`
+                            }
+                            fill="#f9a825"
+                            className="hit-flash-anim"
+                            style={{
+                              transformOrigin: `${cx}px ${cy}px`,
+                              animation:
+                                "hit-flash 0.45s ease-out forwards",
+                            }}
+                          />
+                        )}
+                      {/* Red fade-out on miss. */}
+                      {isMissTarget && (
+                        <circle
+                          key={`miss-${eventSeq}`}
+                          cx={cx}
+                          cy={cy}
+                          r={20}
+                          fill="#ef5350"
+                          opacity={0.35}
+                          className="miss-fade-anim"
+                          style={{
+                            transformOrigin: `${cx}px ${cy}px`,
+                            animation: "miss-fade 0.6s ease-out forwards",
+                          }}
                         />
                       )}
                       <circle

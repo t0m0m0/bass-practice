@@ -69,8 +69,19 @@ export function useTabPractice(
   const [currentBeat, setCurrentBeat] = useState(-1);
   const [loop, setLoop] = useState(0);
   const [lastEvent, setLastEvent] = useState<TimingEvent | null>(null);
+  const [combo, setCombo] = useState(0);
+  const [maxCombo, setMaxCombo] = useState(0);
+  // Monotonic counter bumped on every judged event. Consumers (animations,
+  // combo popups) can key on this to retrigger effects even when the same
+  // judgment repeats in a row.
+  const [eventSeq, setEventSeq] = useState(0);
 
   const onsetDetectorRef = useRef(new OnsetDetector());
+  // Ref-mirrored combo counters so we can update them synchronously
+  // inside the RAF onset loop without relying on state updater side
+  // effects (which can double-fire under StrictMode).
+  const comboRef = useRef(0);
+  const maxComboRef = useRef(0);
   const targetsRef = useRef<TimingTarget[]>([]);
   const hitBeatsRef = useRef(new Set<number>());
   const animFrameRef = useRef(0);
@@ -155,6 +166,24 @@ export function useTabPractice(
           setTimingEvents((prev) => [...prev, event]);
           setCurrentLoopEvents((prev) => [...prev, event]);
           setLastEvent(event);
+          setEventSeq((n) => n + 1);
+          // Combo: on-time hits extend the streak (the initial judgment is
+          // always "hit" here; pitch finalize may later upgrade it to
+          // "perfect" or downgrade to "timing-only" — both keep the streak).
+          // Early / late break it immediately. Miss is handled at the loop
+          // boundary flush below.
+          if (event.judgment === "hit") {
+            const next = comboRef.current + 1;
+            comboRef.current = next;
+            setCombo(next);
+            if (next > maxComboRef.current) {
+              maxComboRef.current = next;
+              setMaxCombo(next);
+            }
+          } else {
+            comboRef.current = 0;
+            setCombo(0);
+          }
 
           // Queue for post-onset pitch sampling. Pitch right at the attack
           // is noisy, so we skip the first few ms and keep the highest-clarity
@@ -232,6 +261,13 @@ export function useTabPractice(
             loopEventsRef.current = [...loopEventsRef.current, ...misses];
             setTimingEvents((prev) => [...prev, ...misses]);
             setCurrentLoopEvents((prev) => [...prev, ...misses]);
+            // Surface the latest miss so the tab overlay can render a
+            // red fade-out on the missed beat (AsciiTabDisplay keys its
+            // miss-fade on lastEvent.judgment === "miss").
+            setLastEvent(misses[misses.length - 1]);
+            comboRef.current = 0;
+            setCombo(0);
+            setEventSeq((n) => n + misses.length);
           }
 
           // Evaluate auto-BPM at loop boundary. Pass the freshly-observed
@@ -270,6 +306,11 @@ export function useTabPractice(
     setCurrentBeat(-1);
     setLoop(0);
     setLastEvent(null);
+    comboRef.current = 0;
+    maxComboRef.current = 0;
+    setCombo(0);
+    setMaxCombo(0);
+    setEventSeq(0);
     allEventsRef.current = [];
     loopEventsRef.current = [];
     hitBeatsRef.current = new Set();
@@ -333,12 +374,15 @@ export function useTabPractice(
       timingEvents,
       currentLoopEvents,
       lastEvent,
+      eventSeq,
+      combo,
+      maxCombo,
       stats,
       metronome: metronomeSlice,
       autoBpm,
       startSession,
       stopSession,
     }),
-    [phase, currentBeat, loop, timingEvents, currentLoopEvents, lastEvent, stats, metronomeSlice, autoBpm, startSession, stopSession],
+    [phase, currentBeat, loop, timingEvents, currentLoopEvents, lastEvent, eventSeq, combo, maxCombo, stats, metronomeSlice, autoBpm, startSession, stopSession],
   );
 }
