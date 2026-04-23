@@ -103,6 +103,33 @@ export class MetronomeEngine {
     this.state = { status: "ready", audioContext: ctx };
   }
 
+  /**
+   * Play a single count-in click immediately. Used to give an audible pulse
+   * during a pre-session countdown so the player can lock into the tempo
+   * before playback actually starts. Requires `initContext()` to have been
+   * called inside the user-gesture handler.
+   *
+   * `accent=true` plays the higher-pitched downbeat tone; set it on the
+   * final "go" click to signal session start.
+   */
+  playCountInClick(accent = false): void {
+    if (this.state.status === "idle") return;
+    const ctx = this.state.audioContext;
+    // Guard against closed contexts (e.g. stop() raced with a pending tick).
+    if (ctx.state === "closed") return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = accent ? 1000 : 800;
+    const peakGain = accent ? 1.0 : 0.6;
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(peakGain, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  }
+
   async start(): Promise<void> {
     if (this.state.status === "playing") return;
 

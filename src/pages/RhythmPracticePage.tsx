@@ -8,6 +8,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { MetronomeControls } from "../components/practice/MetronomeControls";
 import { TimingFeedback } from "../components/practice/TimingFeedback";
 import { RhythmPatternDisplay } from "../components/practice/RhythmPatternDisplay";
+import { CountdownOverlay } from "../components/practice/CountdownOverlay";
 import { Card, Tag } from "../components/md3";
 
 export function RhythmPracticePage() {
@@ -231,6 +232,7 @@ function RhythmPracticeContent({
           />
         </>
       )}
+      <CountdownOverlay count={practice.countdown} />
     </div>
   );
 }

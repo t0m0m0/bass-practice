@@ -23,6 +23,17 @@ export interface PitchJudgeConfig {
   toleranceCents: number;
 }
 
+export interface TabPracticeOptions {
+  /**
+   * Number of count-in beats played before the metronome starts. Each beat
+   * lasts 1 second and ticks down `countdown` from N → 1. Set to 0 to
+   * disable the count-in (primarily used in tests to avoid real-time waits).
+   */
+  countdownSeconds?: number;
+}
+
+const DEFAULT_COUNTDOWN_SECONDS = 3;
+
 /** Window after an onset during which we keep sampling pitch for its best estimate. */
 const PITCH_SAMPLE_WINDOW_MS = 120;
 /** Ignore initial ms of the onset's attack where pitch detection is unstable. */
@@ -39,7 +50,9 @@ export function useTabPractice(
   preset: TabPreset,
   audioEngine: AudioEngine | null,
   pitchJudge: PitchJudgeConfig = { enabled: true, toleranceCents: 50 },
+  options: TabPracticeOptions = {},
 ) {
+  const countdownSeconds = options.countdownSeconds ?? DEFAULT_COUNTDOWN_SECONDS;
   const metronome = useMetronome(
     preset.bpm,
     preset.timeSignature.beatsPerMeasure,
@@ -61,6 +74,9 @@ export function useTabPractice(
   }, [metronome]);
 
   const [phase, setPhase] = useState<TabSessionPhase>("idle");
+  // Remaining count-in beats (N..1 during countdown, null otherwise).
+  // UI overlays read this to render "3 / 2 / 1" before playback begins.
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [timingEvents, setTimingEvents] = useState<TimingEvent[]>([]);
   // Events observed within the current loop only. Consumers that want a
   // per-loop visualisation (scatter, per-step highlight) should use this
@@ -324,7 +340,18 @@ export function useTabPractice(
     metronomeRef.current.initContext();
 
     setPhase("countdown");
-    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Count-in: tick down N → 1 with 1-second intervals, playing an audible
+    // click each beat so the player can lock in tempo before playback.
+    // `countdownSeconds = 0` skips the wait entirely (used in tests).
+    if (countdownSeconds > 0) {
+      for (let n = countdownSeconds; n >= 1; n--) {
+        setCountdown(n);
+        metronomeRef.current.playCountInClick(false);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+    setCountdown(null);
 
     try {
       await metronomeRef.current.start();
@@ -333,10 +360,11 @@ export function useTabPractice(
       throw err;
     }
     setPhase("playing");
-  }, []);
+  }, [countdownSeconds]);
 
   const stopSession = useCallback(async () => {
     cancelAnimationFrame(animFrameRef.current);
+    setCountdown(null);
     await metronomeRef.current.stop();
 
     const misses = generateMisses(targetsRef.current, hitBeatsRef.current);
@@ -369,6 +397,7 @@ export function useTabPractice(
   return useMemo(
     () => ({
       phase,
+      countdown,
       currentBeat,
       loop,
       timingEvents,
@@ -383,6 +412,6 @@ export function useTabPractice(
       startSession,
       stopSession,
     }),
-    [phase, currentBeat, loop, timingEvents, currentLoopEvents, lastEvent, eventSeq, combo, maxCombo, stats, metronomeSlice, autoBpm, startSession, stopSession],
+    [phase, countdown, currentBeat, loop, timingEvents, currentLoopEvents, lastEvent, eventSeq, combo, maxCombo, stats, metronomeSlice, autoBpm, startSession, stopSession],
   );
 }

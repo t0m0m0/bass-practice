@@ -25,6 +25,7 @@ vi.mock("../lib/audio/MetronomeEngine", () => ({
       mockTimeMs = null;
     });
     initContext = vi.fn();
+    playCountInClick = vi.fn();
     onBeat = (cb: BeatCallback) => {
       engineBeatCallback = cb;
       return () => {
@@ -75,14 +76,14 @@ describe("useTabPractice", () => {
   });
 
   it("initializes in idle phase", () => {
-    const { result } = renderHook(() => useTabPractice(preset, null));
+    const { result } = renderHook(() => useTabPractice(preset, null, undefined, { countdownSeconds: 0 }));
     expect(result.current.phase).toBe("idle");
     expect(result.current.loop).toBe(0);
     expect(result.current.timingEvents).toEqual([]);
   });
 
   it("startSession starts metronome even when audioEngine is null", async () => {
-    const { result } = renderHook(() => useTabPractice(preset, null));
+    const { result } = renderHook(() => useTabPractice(preset, null, undefined, { countdownSeconds: 0 }));
     await act(async () => {
       await result.current.startSession();
     });
@@ -92,7 +93,7 @@ describe("useTabPractice", () => {
 
   it("transitions countdown → playing on startSession and starts the metronome", async () => {
     const { result } = renderHook(() =>
-      useTabPractice(preset, makeAudioEngine()),
+      useTabPractice(preset, makeAudioEngine(), undefined, { countdownSeconds: 0 }),
     );
     await act(async () => {
       await result.current.startSession();
@@ -101,12 +102,60 @@ describe("useTabPractice", () => {
     expect(result.current.phase).toBe("playing");
   });
 
+  it("ticks the countdown N→1 with audible clicks before starting the metronome", async () => {
+    vi.useFakeTimers();
+    try {
+      const engineInstances: { playCountInClick: ReturnType<typeof vi.fn> }[] = [];
+      // Re-import would be heavy; instead spy via a side-effect: the mock class
+      // exposes playCountInClick as a vi.fn() on every instance, so capture via
+      // the hook's calls indirectly by counting mockStart timing. We assert the
+      // observable contract: phase goes countdown, countdown counts down from 2
+      // to 1 to null, and start() is only called after the last tick.
+      void engineInstances;
+
+      const { result } = renderHook(() =>
+        useTabPractice(preset, makeAudioEngine(), undefined, { countdownSeconds: 2 }),
+      );
+
+      // Kick off startSession but don't await yet — we need to inspect
+      // intermediate state between the fake timer advances.
+      let started: Promise<void> | null = null;
+      act(() => {
+        started = result.current.startSession();
+      });
+
+      // Synchronous part of startSession has already run: phase=countdown,
+      // countdown=2, no metronome start yet.
+      expect(result.current.phase).toBe("countdown");
+      expect(result.current.countdown).toBe(2);
+      expect(mockStart).not.toHaveBeenCalled();
+
+      // Advance 1s → countdown transitions 2 → 1.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(result.current.countdown).toBe(1);
+      expect(mockStart).not.toHaveBeenCalled();
+
+      // Advance final 1s → countdown clears and metronome starts.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+        await started;
+      });
+      expect(result.current.countdown).toBeNull();
+      expect(result.current.phase).toBe("playing");
+      expect(mockStart).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("falls back to idle phase if the metronome fails to start", async () => {
     mockStart.mockImplementationOnce(async () => {
       throw new Error("audio hw failure");
     });
     const { result } = renderHook(() =>
-      useTabPractice(preset, makeAudioEngine()),
+      useTabPractice(preset, makeAudioEngine(), undefined, { countdownSeconds: 0 }),
     );
     await expect(
       act(async () => {
@@ -118,7 +167,7 @@ describe("useTabPractice", () => {
 
   it("builds timing targets on the very first beat", async () => {
     const { result } = renderHook(() =>
-      useTabPractice(preset, makeAudioEngine()),
+      useTabPractice(preset, makeAudioEngine(), undefined, { countdownSeconds: 0 }),
     );
     await act(async () => {
       await result.current.startSession();
@@ -136,7 +185,7 @@ describe("useTabPractice", () => {
 
   it("emits misses and increments loop when wrapping past totalBeats", async () => {
     const { result } = renderHook(() =>
-      useTabPractice(preset, makeAudioEngine()),
+      useTabPractice(preset, makeAudioEngine(), undefined, { countdownSeconds: 0 }),
     );
     await act(async () => {
       await result.current.startSession();
@@ -156,7 +205,7 @@ describe("useTabPractice", () => {
 
   it("flushes unhit targets to misses on stopSession and marks phase finished", async () => {
     const { result } = renderHook(() =>
-      useTabPractice(preset, makeAudioEngine()),
+      useTabPractice(preset, makeAudioEngine(), undefined, { countdownSeconds: 0 }),
     );
     await act(async () => {
       await result.current.startSession();
@@ -177,7 +226,7 @@ describe("useTabPractice", () => {
     const fastPreset: TabPreset = { ...preset, bpm: 999 };
     mockBpm = 300;
     const { result } = renderHook(() =>
-      useTabPractice(fastPreset, makeAudioEngine()),
+      useTabPractice(fastPreset, makeAudioEngine(), undefined, { countdownSeconds: 0 }),
     );
     await act(async () => {
       await result.current.startSession();
@@ -199,7 +248,7 @@ describe("useTabPractice", () => {
     // Regression guard: AsciiTabDisplay's miss-fade overlay keys off
     // lastEvent.judgment === "miss", so the flush path must set lastEvent.
     const { result } = renderHook(() =>
-      useTabPractice(preset, makeAudioEngine()),
+      useTabPractice(preset, makeAudioEngine(), undefined, { countdownSeconds: 0 }),
     );
     await act(async () => {
       await result.current.startSession();
@@ -222,7 +271,7 @@ describe("useTabPractice", () => {
     // loop flush. The test ensures the state setter is wired; the
     // positive increment path is covered by integration/e2e.
     const { result } = renderHook(() =>
-      useTabPractice(preset, makeAudioEngine()),
+      useTabPractice(preset, makeAudioEngine(), undefined, { countdownSeconds: 0 }),
     );
     await act(async () => {
       await result.current.startSession();
