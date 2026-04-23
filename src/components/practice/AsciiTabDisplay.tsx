@@ -26,6 +26,11 @@ function judgmentColor(j: TimingEvent["judgment"]): string {
       return "#f9a825";
     case "miss":
       return "#ef5350";
+    default: {
+      // Exhaustiveness guard — fails at type-check if a new judgment is added.
+      const _exhaustive: never = j;
+      return _exhaustive;
+    }
   }
 }
 

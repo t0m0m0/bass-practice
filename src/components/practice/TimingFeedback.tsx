@@ -448,9 +448,13 @@ function TimingScatter({ events }: { events: TimingEvent[] }) {
               : e.judgment === "timing-only"
               ? "#ffb74d"
               : "#f9a825";
+          // Stable key: a hit event's targetBeat is unique within a
+          // loop, and onsetTimeMs tie-breaks across loops so that the
+          // sliding window doesn't reuse DOM nodes with different data.
+          const key = `${e.targetBeat}-${e.onsetTimeMs}`;
           return (
             <div
-              key={i}
+              key={key}
               style={{
                 position: "absolute",
                 left,
