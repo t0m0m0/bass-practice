@@ -77,6 +77,9 @@ export function useTabPractice(
   // Remaining count-in beats (N..1 during countdown, null otherwise).
   // UI overlays read this to render "3 / 2 / 1" before playback begins.
   const [countdown, setCountdown] = useState<number | null>(null);
+  // Flag set by stopSession() so an in-flight countdown loop can bail out
+  // instead of transitioning to "playing" after the user aborted.
+  const countdownAbortRef = useRef(false);
   const [timingEvents, setTimingEvents] = useState<TimingEvent[]>([]);
   // Events observed within the current loop only. Consumers that want a
   // per-loop visualisation (scatter, per-step highlight) should use this
@@ -340,18 +343,26 @@ export function useTabPractice(
     metronomeRef.current.initContext();
 
     setPhase("countdown");
+    countdownAbortRef.current = false;
 
     // Count-in: tick down N → 1 with 1-second intervals, playing an audible
     // click each beat so the player can lock in tempo before playback.
     // `countdownSeconds = 0` skips the wait entirely (used in tests).
-    if (countdownSeconds > 0) {
-      for (let n = countdownSeconds; n >= 1; n--) {
-        setCountdown(n);
-        metronomeRef.current.playCountInClick(false);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+    // If stopSession() runs mid-countdown we bail out before touching state
+    // again so the session doesn't silently transition to "playing".
+    try {
+      if (countdownSeconds > 0) {
+        for (let n = countdownSeconds; n >= 1; n--) {
+          if (countdownAbortRef.current) return;
+          setCountdown(n);
+          metronomeRef.current.playCountInClick(false);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
+      if (countdownAbortRef.current) return;
+    } finally {
+      setCountdown(null);
     }
-    setCountdown(null);
 
     try {
       await metronomeRef.current.start();
@@ -364,6 +375,8 @@ export function useTabPractice(
 
   const stopSession = useCallback(async () => {
     cancelAnimationFrame(animFrameRef.current);
+    // Signal any in-flight count-in loop to bail out on its next tick.
+    countdownAbortRef.current = true;
     setCountdown(null);
     await metronomeRef.current.stop();
 

@@ -150,6 +150,44 @@ describe("useTabPractice", () => {
     }
   });
 
+  it("stopSession during countdown cancels the transition to playing", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useTabPractice(preset, makeAudioEngine(), undefined, { countdownSeconds: 3 }),
+      );
+
+      let started: Promise<void> | null = null;
+      act(() => {
+        started = result.current.startSession();
+      });
+      expect(result.current.phase).toBe("countdown");
+
+      // Advance into the middle of the count-in, then abort.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(result.current.countdown).toBe(2);
+
+      await act(async () => {
+        await result.current.stopSession();
+      });
+
+      // Drain remaining fake timers so the countdown loop's final iteration
+      // runs and hits the abort guard instead of flipping to "playing".
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+        await started;
+      });
+
+      expect(mockStart).not.toHaveBeenCalled();
+      expect(result.current.phase).toBe("finished");
+      expect(result.current.countdown).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("falls back to idle phase if the metronome fails to start", async () => {
     mockStart.mockImplementationOnce(async () => {
       throw new Error("audio hw failure");
