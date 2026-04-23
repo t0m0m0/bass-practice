@@ -159,7 +159,14 @@ export function useTabPractice(
           // Queue for post-onset pitch sampling. Pitch right at the attack
           // is noisy, so we skip the first few ms and keep the highest-clarity
           // result across the sampling window.
-          if (pitchJudgeRef.current.enabled && event.expectedFrequency != null) {
+          // Only "hit" (on-time) is eligible for pitch evaluation; early/late
+          // are excluded so pitchAccuracy stats stay consistent with the
+          // "成功判定の中での音程精度" semantics (see PR #52 comment).
+          if (
+            pitchJudgeRef.current.enabled &&
+            event.expectedFrequency != null &&
+            event.judgment === "hit"
+          ) {
             pendingPitchRef.current = [
               ...pendingPitchRef.current,
               {

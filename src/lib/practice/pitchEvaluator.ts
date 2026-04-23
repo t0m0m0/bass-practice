@@ -47,10 +47,9 @@ export function centsBetween(
  * the intended frequency) still be recognised as correct pitch class.
  */
 export function foldCentsToPitchClass(cents: number): number {
-  let folded = ((cents + 600) % 1200 + 1200) % 1200 - 600;
-  // Guarantee the canonical range (JS modulo on -600 edge case)
-  if (folded >= 600) folded -= 1200;
-  return folded;
+  // The double-modulo form `((x % n) + n) % n` always lands in [0, 1200),
+  // so subtracting 600 always lands in [-600, 600).
+  return ((cents + 600) % 1200 + 1200) % 1200 - 600;
 }
 
 export interface PitchJudgeResult {

@@ -139,7 +139,14 @@ export function computeStats(events: TimingEvent[]): TimingStats {
   const avgAbsDeltaMs =
     deltas.length > 0 ? deltas.reduce((a, b) => a + b, 0) / deltas.length : 0;
 
-  const pitchJudged = hits.filter((e) => e.pitchCents != null);
+  // Only on-time hits (perfect / timing-only) participate in pitch accuracy;
+  // early/late are excluded from both numerator and denominator so "音程
+  // 精度" reflects 「タイミング正解した中での音程正解率」.
+  const pitchJudged = hits.filter(
+    (e) =>
+      e.pitchCents != null &&
+      (e.judgment === "perfect" || e.judgment === "timing-only"),
+  );
   const pitchCorrect = pitchJudged.filter(
     (e) => e.judgment === "perfect",
   ).length;

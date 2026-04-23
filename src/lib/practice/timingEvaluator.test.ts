@@ -171,6 +171,39 @@ describe("computeStats", () => {
     expect(stats.avgAbsDeltaMs).toBe(0);
   });
 
+  it("excludes early/late events from pitch accuracy even if pitchCents is present", () => {
+    // Regression: defense-in-depth. Even if an early/late event somehow
+    // carries pitchCents (e.g. future refactor), it must not affect
+    // pitchAccuracy — the stat means "タイミング正解の中での音程正解率".
+    const events: import("../../types/practice").TimingEvent[] = [
+      {
+        targetBeat: 0,
+        targetTimeMs: 0,
+        onsetTimeMs: 5,
+        deltaMs: 5,
+        judgment: "perfect" as const,
+        expectedFrequency: 110,
+        detectedFrequency: 110,
+        pitchCents: 0,
+      },
+      {
+        // early with pitchCents populated — should be ignored by pitch stats
+        targetBeat: 1,
+        targetTimeMs: 500,
+        onsetTimeMs: 450,
+        deltaMs: -50,
+        judgment: "early" as const,
+        expectedFrequency: 110,
+        detectedFrequency: 200,
+        pitchCents: 500,
+      },
+    ];
+    const stats = computeStats(events);
+    expect(stats.pitchJudgedCount).toBe(1);
+    expect(stats.pitchAccuracy).toBe(1);
+    expect(stats.avgAbsCents).toBe(0);
+  });
+
   it("computes pitch accuracy from perfect vs timing-only", () => {
     const events: import("../../types/practice").TimingEvent[] = [
       {
