@@ -360,7 +360,10 @@ export function useTabPractice(
         for (let n = countdownSeconds; n >= 1; n--) {
           if (countdownAbortRef.current) return;
           setCountdown(n);
-          metronomeRef.current.playCountInClick(false);
+          // Accent the final "1" so the player hears the downbeat cue
+          // right before playback starts. Matches the engine's API contract
+          // documented on playCountInClick().
+          metronomeRef.current.playCountInClick(n === 1);
           await new Promise((resolve) => setTimeout(resolve, beatIntervalMs));
         }
       }
