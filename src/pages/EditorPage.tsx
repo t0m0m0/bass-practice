@@ -137,11 +137,17 @@ export function EditorPage() {
           max={12}
           onChange={(v) => updateTimeSignature({ beatsPerMeasure: v })}
         />
+        {/*
+          Beat unit is fixed to 4 (quarter note) for now: the metronome and
+          timing evaluator both treat tempo as quarter-note BPM, so exposing
+          other denominators here would create a mismatch between the UI
+          label and actual playback. See `SUPPORTED_BEAT_UNITS`.
+        */}
         <LabeledNumber
           label="音符値"
           value={draft.timeSignature.beatUnit}
-          min={1}
-          max={16}
+          min={4}
+          max={4}
           onChange={(v) => updateTimeSignature({ beatUnit: v })}
         />
         <LabeledNumber

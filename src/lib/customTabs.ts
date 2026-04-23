@@ -1,4 +1,5 @@
 import type { TabPreset, TabNote, TimeSignature } from "../types/practice";
+import { isSupportedTimeSignature } from "./practice/timeSignature";
 
 export const CUSTOM_TABS_STORAGE_KEY = "bass-practice.customTabs.v1";
 
@@ -31,6 +32,7 @@ function isValidPreset(value: unknown): value is TabPreset {
     typeof v.measures === "number" &&
     v.timeSignature != null &&
     typeof v.timeSignature === "object" &&
+    isSupportedTimeSignature(v.timeSignature as TimeSignature) &&
     Array.isArray(v.notes)
   );
 }
