@@ -124,6 +124,65 @@ describe("useAudioInput", () => {
       });
     });
 
+    it("start() 途中に stop() されたら engine を最終的に起動しない", async () => {
+      let resolveStart: (() => void) | undefined;
+      mocks.engineStart.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveStart = resolve;
+          }),
+      );
+
+      const { result } = renderHook(() => useAudioInput());
+      let pending: Promise<void> | undefined;
+
+      await act(async () => {
+        pending = result.current.start();
+      });
+
+      await act(async () => {
+        await result.current.stop();
+      });
+
+      await act(async () => {
+        resolveStart?.();
+        await pending;
+      });
+
+      expect(result.current.isListening).toBe(false);
+      expect(result.current.engine).toBeNull();
+      // cancelled start で生成した engine は stop() されているはず
+      expect(mocks.engineStop).toHaveBeenCalled();
+    });
+
+    it("start() 途中に stop() されたらエラーを state に反映しない", async () => {
+      let rejectStart: ((err: Error) => void) | undefined;
+      mocks.engineStart.mockImplementation(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectStart = reject;
+          }),
+      );
+
+      const { result } = renderHook(() => useAudioInput());
+      let pending: Promise<void> | undefined;
+
+      await act(async () => {
+        pending = result.current.start();
+      });
+
+      await act(async () => {
+        await result.current.stop();
+      });
+
+      await act(async () => {
+        rejectStart?.(new Error("Permission denied"));
+        await pending?.catch(() => {});
+      });
+
+      expect(result.current.error).toBeNull();
+    });
+
     it("start() 後は isListening が true になる", async () => {
       const { result } = renderHook(() => useAudioInput());
       await act(async () => {

@@ -84,7 +84,6 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
   };
 
   const displayedError = startError ?? audio.error;
-  const micWarning = null;
 
   const autoBpmBlock = (
     <AutoBpmControls
@@ -119,20 +118,6 @@ function TabPracticeContent({ preset }: TabPracticeContentProps) {
         </div>
       )}
 
-      {micWarning && (
-        <div
-          style={{
-            background: "#f9a8251a",
-            border: "1px solid #f9a82566",
-            color: "#f9a825",
-            borderRadius: 12,
-            padding: "12px 16px",
-            font: "400 13px/1.5 Roboto, sans-serif",
-          }}
-        >
-          🎤 マイクが利用できません（メトロノームは動作します）: {micWarning}
-        </div>
-      )}
     </>
   );
 

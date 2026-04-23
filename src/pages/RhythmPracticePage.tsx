@@ -73,7 +73,6 @@ function RhythmPracticeContent({
   };
 
   const displayedError = startError ?? audio.error;
-  const micWarning = null;
 
   const errorBlock = (
     <>
@@ -90,20 +89,6 @@ function RhythmPracticeContent({
           }}
         >
           {displayedError}
-        </div>
-      )}
-      {micWarning && (
-        <div
-          style={{
-            background: "#f9a8251a",
-            border: "1px solid #f9a82566",
-            color: "#f9a825",
-            borderRadius: 12,
-            padding: "12px 16px",
-            font: "400 13px/1.5 Roboto, sans-serif",
-          }}
-        >
-          🎤 マイクが利用できません（メトロノームは動作します）: {micWarning}
         </div>
       )}
     </>
