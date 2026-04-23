@@ -1,6 +1,16 @@
+import { assertSupportedBeatUnit } from "../practice/timeSignature";
+
 export interface MetronomeOptions {
   bpm: number;
   beatsPerMeasure: number;
+  /**
+   * Note value of a beat (denominator of the time signature).
+   *
+   * Currently only quarter-note beats (`4`) are supported: the scheduler
+   * treats tempo as quarter-note BPM via `60 / bpm` seconds per beat.
+   * Values other than 4 throw so mismatches between UI labels and actual
+   * playback can't slip in unnoticed. See `SUPPORTED_BEAT_UNITS`.
+   */
   beatUnit: number;
 }
 
@@ -35,6 +45,7 @@ export class MetronomeEngine {
 
   constructor(options: MetronomeOptions) {
     assertBeatsPerMeasure(options.beatsPerMeasure);
+    assertSupportedBeatUnit(options.beatUnit);
     this._bpm = MetronomeEngine.clampBpm(options.bpm);
     this._beatsPerMeasure = options.beatsPerMeasure;
     this._beatUnit = options.beatUnit;

@@ -39,6 +39,18 @@ describe("customTabs persistence", () => {
     expect(loaded).toHaveLength(1);
     expect(loaded[0].name).toBe("ok");
   });
+
+  it("filters presets with unsupported beat units", () => {
+    const bad = {
+      ...createEmptyPreset({ name: "bad" }),
+      timeSignature: { beatsPerMeasure: 6, beatUnit: 8 },
+    };
+    const good = createEmptyPreset({ name: "good" });
+    localStorage.setItem(CUSTOM_TABS_STORAGE_KEY, JSON.stringify([bad, good]));
+    const loaded = loadCustomTabs();
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0].name).toBe("good");
+  });
 });
 
 describe("cloneAsCustom", () => {

@@ -84,6 +84,15 @@ describe("MetronomeEngine", () => {
     expect(clamped.bpm).toBe(300);
   });
 
+  it("throws on unsupported beatUnit", () => {
+    expect(
+      () => new MetronomeEngine({ bpm: 120, beatsPerMeasure: 6, beatUnit: 8 }),
+    ).toThrow(RangeError);
+    expect(
+      () => new MetronomeEngine({ bpm: 120, beatsPerMeasure: 4, beatUnit: 2 }),
+    ).toThrow(RangeError);
+  });
+
   it("throws on invalid beatsPerMeasure", () => {
     expect(
       () => new MetronomeEngine({ bpm: 120, beatsPerMeasure: 0, beatUnit: 4 }),
