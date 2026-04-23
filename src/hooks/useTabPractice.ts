@@ -345,18 +345,23 @@ export function useTabPractice(
     setPhase("countdown");
     countdownAbortRef.current = false;
 
-    // Count-in: tick down N → 1 with 1-second intervals, playing an audible
-    // click each beat so the player can lock in tempo before playback.
+    // Count-in: tick down N → 1 at the session's beat interval, playing an
+    // audible click each beat so the player can lock in tempo before
+    // playback. Using 60000/bpm (instead of a fixed 1000ms) keeps the
+    // count-in musically continuous with the metronome that follows — at
+    // 120bpm a fixed 1s tick would feel half-time leading into playback.
+    //
     // `countdownSeconds = 0` skips the wait entirely (used in tests).
     // If stopSession() runs mid-countdown we bail out before touching state
     // again so the session doesn't silently transition to "playing".
+    const beatIntervalMs = 60000 / metronomeRef.current.bpm;
     try {
       if (countdownSeconds > 0) {
         for (let n = countdownSeconds; n >= 1; n--) {
           if (countdownAbortRef.current) return;
           setCountdown(n);
           metronomeRef.current.playCountInClick(false);
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, beatIntervalMs));
         }
       }
       if (countdownAbortRef.current) return;

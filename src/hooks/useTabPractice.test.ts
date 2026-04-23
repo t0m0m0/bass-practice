@@ -130,16 +130,17 @@ describe("useTabPractice", () => {
       expect(result.current.countdown).toBe(2);
       expect(mockStart).not.toHaveBeenCalled();
 
-      // Advance 1s → countdown transitions 2 → 1.
+      // At mockBpm=120 each count-in beat lasts 500ms (60000/120).
+      // Advance one beat → countdown transitions 2 → 1.
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(500);
       });
       expect(result.current.countdown).toBe(1);
       expect(mockStart).not.toHaveBeenCalled();
 
-      // Advance final 1s → countdown clears and metronome starts.
+      // Advance final beat → countdown clears and metronome starts.
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(500);
         await started;
       });
       expect(result.current.countdown).toBeNull();
@@ -163,9 +164,9 @@ describe("useTabPractice", () => {
       });
       expect(result.current.phase).toBe("countdown");
 
-      // Advance into the middle of the count-in, then abort.
+      // Advance one beat (500ms at 120bpm), then abort mid-countdown.
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(500);
       });
       expect(result.current.countdown).toBe(2);
 
